@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Scraping / pipeline (not needed for dashboard deploy)
+webscraping/
+
+# Generated outputs
+analysis/*.xlsx
+analysis/itineraries_for_manager.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
