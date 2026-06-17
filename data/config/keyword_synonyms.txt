@@ -1,0 +1,36 @@
+# keyword_synonyms.txt
+# Canonical name mappings. One per line: old_name -> canonical_name
+# Matching is case-insensitive. Add more aliases below as you discover them.
+#
+# --- Uluru / Ayers Rock ---
+Ayers Rock -> Uluru
+Ayers Rock Resort -> Uluru
+
+# --- Purnululu / Bungle Bungles ---
+Bungle Bungles -> Purnululu National Park
+Bungle Bungle Range -> Purnululu National Park
+
+# --- Lake Eyre (official dual name since 2012) ---
+Lake Eyre -> Kati Thanda-Lake Eyre
+
+# --- Kings Canyon ---
+Kings Canyon -> Watarrka National Park
+
+# --- Kakadu ---
+Kakadu -> Kakadu National Park
+
+# --- Flinders Ranges ---
+Flinders Range -> Flinders Ranges
+
+# --- Common abbreviations / alternate spellings ---
+Mt Warning -> Mount Warning
+Mt Bartle Frere -> Mount Bartle Frere
+Mt Kosciuszko -> Mount Kosciuszko
+DISCOUNT TOUR Great Barrier Reef -> Great Barrier Reef
+DISCOUNT TOUR Great Barrier Reef Day Tour -> Great Barrier Reef
+DISCOUNT TOUR ZigZag Whitsundays Day Tour -> ZigZag Whitsundays
+DISCOUNT TOUR Surfers Paradise River -> Surfers Paradise River
+DISCOUNT ACCOMMODATION Tamborine Mountain -> Tamborine Mountain
+DISCOUNT ACCOMMODATION Tasman Holiday Parks -> Tasman
+Full Day Outer Great Barrier Reef Experience -> Great Barrier Reef
+Great Barrier Reef Drive -> Great Barrier Reef

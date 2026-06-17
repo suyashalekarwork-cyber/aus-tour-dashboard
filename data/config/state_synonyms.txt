@@ -1,0 +1,8 @@
+# State name canonicalization — Variant -> Canonical State (case-insensitive)
+# Curated via analysis/city_review_tool.py (States sheet) or edited by hand.
+# Applied to the 'state' column in combine_sources.py.
+# Empty / all-commented = no-op. Re-run the pipeline after editing.
+
+# --- Examples (uncomment / edit) ---
+# New South Wales -> NSW
+# Vic -> VIC

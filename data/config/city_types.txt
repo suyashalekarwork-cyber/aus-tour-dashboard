@@ -1,0 +1,188 @@
+# City type classification — Canonical City -> type
+# Types: city | region | national_park | route | island
+# Curated via analysis/city_review_tool.py
+# Source of truth for the city vocabulary is _PLACES_RAW in combine_sources.py
+
+# --- Cities & towns ---
+Adelaide -> city
+Airlie Beach -> city
+Albany -> city
+Alice Springs -> city
+Apollo Bay -> city
+Arkaroola -> city
+Armidale -> city
+Auckland -> city
+Bali -> city
+Ballarat -> city
+Batemans Bay -> city
+Bathurst -> city
+Beechworth -> city
+Bendigo -> city
+Bicheno -> city
+Birdsville -> city
+Bowral -> city
+Bridport -> city
+Bright -> city
+Brisbane -> city
+Broken Hill -> city
+Broome -> city
+Bundaberg -> city
+Busselton -> city
+Byron Bay -> city
+Cairns -> city
+Canberra -> city
+Carnarvon -> city
+Cervantes -> city
+Christchurch -> city
+Coffs Harbour -> city
+Collie -> city
+Coober Pedy -> city
+Cooktown -> city
+Coral Bay -> city
+Darwin -> city
+Daylesford -> city
+Denham -> city
+Derby -> city
+Dubbo -> city
+Dunsborough -> city
+Echuca -> city
+El Questro -> city
+Esperance -> city
+Exmouth -> city
+Fiji -> city
+Fremantle -> city
+Geelong -> city
+Geraldton -> city
+Healesville -> city
+Hervey Bay -> city
+Hobart -> city
+Jervis Bay -> city
+Kalbarri -> city
+Kalgoorlie -> city
+Karratha -> city
+Karumba -> city
+Katherine -> city
+Katoomba -> city
+Kununurra -> city
+Kuranda -> city
+Lakes Entrance -> city
+Launceston -> city
+Longreach -> city
+Lorella Springs -> city
+Lorne -> city
+Mackay -> city
+Margaret River -> city
+Melbourne -> city
+Milford Sound -> city
+Mission Beach -> city
+Monkey Mia -> city
+Mount Isa -> city
+Mount Warning -> city
+Mudgee -> city
+Mullewa -> city
+New Zealand -> city
+Newcastle -> city
+Noosa -> city
+Oodnadatta -> city
+Orange -> city
+Orford -> city
+Papua New Guinea -> city
+Pemberton -> city
+Perth -> city
+Port Arthur -> city
+Port Augusta -> city
+Port Douglas -> city
+Port Hedland -> city
+Port Lincoln -> city
+Port Macquarie -> city
+Port Stephens -> city
+Queenstown NZ -> city
+Rainbow Beach -> city
+Rockhampton -> city
+Shepparton -> city
+Sorell -> city
+St Helens -> city
+Stanley -> city
+Strahan -> city
+Swansea -> city
+Sydney -> city
+Tamworth -> city
+Tennant Creek -> city
+Tom Price -> city
+Torquay -> city
+Townsville -> city
+Triabunna -> city
+Victor Harbor -> city
+Warrnambool -> city
+Wellington -> city
+William Creek -> city
+Wollongong -> city
+Wyndham -> city
+
+# --- Regions / valleys / ranges / coasts ---
+Adelaide Hills -> region
+Arnhem Land -> region
+Barossa Valley -> region
+Blue Mountains -> region
+Cape York -> region
+Clare Valley -> region
+Coral Coast -> region
+Corner Country -> region
+Eyre Peninsula -> region
+Flinders Ranges -> region
+Gammon Ranges -> region
+Gold Coast -> region
+Grampians -> region
+Great Barrier Reef -> region
+Hunter Valley -> region
+Kimberley -> region
+Mary River -> region
+McLaren Vale -> region
+Mitchell Plateau -> region
+Mornington Peninsula -> region
+Murray River -> region
+Nullarbor -> region
+Pilbara -> region
+Scenic Rim -> region
+Shark Bay -> region
+Sunshine Coast -> region
+Tamborine -> region
+Whitsundays -> region
+
+# --- National parks & natural-feature parks ---
+Abel Tasman NP -> national_park
+Cape Tribulation -> national_park
+Cobbold Gorge -> national_park
+Coorong -> national_park
+Cradle Mountain -> national_park
+Daintree -> national_park
+Freycinet -> national_park
+Kakadu -> national_park
+Karijini -> national_park
+Kings Canyon -> national_park
+Lake Eyre -> national_park
+Lamington -> national_park
+Mungo -> national_park
+Purnululu -> national_park
+Springbrook -> national_park
+Uluru -> national_park
+Uluru-Kata Tjuta -> national_park
+Wilsons Promontory -> national_park
+
+# --- Touring routes / tracks / drives ---
+Great Ocean Road -> route
+Larapinta Trail -> route
+Savannah Way -> route
+
+# --- Islands ---
+Flinders Island -> island
+Fraser Island -> island
+Kangaroo Island -> island
+King Island -> island
+Lizard Island -> island
+Magnetic Island -> island
+Maria Island -> island
+Montebello Islands -> island
+Norfolk Island -> island
+Phillip Island -> island
+Rottnest Island -> island

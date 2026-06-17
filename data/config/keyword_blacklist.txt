@@ -1,0 +1,74 @@
+# keyword_blacklist.txt
+# One phrase per line. Tags matching any of these (case-insensitive) are removed from all tag columns.
+# Lines starting with # are comments.
+#
+# --- Generic marketing phrases (activity_tags) ---
+Enhance Your Journey
+Enrich Your Experience
+Off Train Experience
+This Signature Experience
+Signature Experience
+Your Experience
+Your Journey
+Bespoke Experience
+Exclusive Experience
+Optional Experience
+Premium Experience
+#
+# --- Generic place labels (place_tags) ---
+National Park
+Conservation Park
+Marine Park
+Wilderness Park
+The Park
+Discover
+A Park
+CBD beach
+#
+# --- Generic meal / event labels ---
+Welcome Dinner
+Farewell Dinner
+Welcome Lunch
+Farewell Lunch
+#
+# --- Generic single-word noise (spaCy false positives) ---
+Discover
+Relax
+Earth
+Australian
+Explore
+Visit
+Day
+Night
+Area
+Region
+Reserve
+1970S
+#
+# --- Standalone fragment place labels (legit as part of longer names, noise alone) ---
+Island
+Cape
+Creek
+Bay
+#
+# --- Standalone preposition artifacts (after prefix-stripping in code) ---
+At
+From
+To
+In
+On
+#
+# --- Australian state / territory names (already captured in 'state' column) ---
+Western Australia
+New South Wales
+Queensland
+Victoria
+South Australia
+Tasmania
+Northern Territory
+Australian Capital Territory
+
+
+
+# --- peoples name 
+Anish Kapoor

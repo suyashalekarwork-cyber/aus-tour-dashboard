@@ -1,0 +1,17 @@
+# keyword_allowlist.txt
+# One phrase per line. These are scanned directly in the activity + location text
+# and added to place_tags even if the extractor misses them.
+# Lines starting with # are comments. Matching is case-insensitive.
+#
+# --- Named trees / landmarks without standard place-type suffix ---
+Boab Prison Tree
+Prison Tree
+#
+# --- Add your own custom places below ---
+# Example: Horizontal Falls
+# Example: Ord River Irrigation Area
+
+
+## Shows
+
+Drag and Dine

@@ -1,0 +1,6 @@
+# City name canonicalization — Variant -> Canonical City (case-insensitive)
+# Curated via analysis/city_review_tool.py (Cities sheet) or edited by hand.
+# Applied to the 'city' column in combine_sources.py before the city_type lookup.
+# Empty / all-commented = no-op. Re-run the pipeline after editing.
+
+adelaide hills -> Adelaide

@@ -13,6 +13,20 @@ webscraping/
 analysis/*.xlsx
 analysis/itineraries_for_manager.xlsx
 
+# Excel files (reviews, datasets, outputs) — not version-controlled
+*.xlsx
+~$*.xlsx
+
+# Data dumps (large scraped/generated datasets)
+data/raw/
+data/keywords/
+sampledata/
+prototype/output/
+
+# Local editor / agent config
+.claude/
+.vscode/
+
 # OS
 .DS_Store
 Thumbs.db

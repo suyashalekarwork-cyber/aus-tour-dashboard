@@ -24,7 +24,7 @@ except ImportError:
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 ROOT     = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "data" / "combined_itineraries_latest.csv"
+CSV_PATH = ROOT / "data" / "raw" / "combined_itineraries_latest.csv"
 
 AU_STATES   = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT"]
 INTL_STATES = {"South Pacific", "International"}
@@ -205,10 +205,16 @@ def main():
             help="Searches tour names (case-insensitive)",
         )
 
-        city_search = st.text_input(
-            "Search by city", placeholder="e.g. Cairns, Darwin, Perth…",
-            help="Searches cities visited on each tour (case-insensitive)",
+        all_cities = sorted(
+            {c.strip() for c in days["city"].dropna() if c and c.strip()}
         )
+        city_choice = st.selectbox(
+            "Search by city",
+            options=["— All cities —"] + all_cities,
+            index=0,
+            help="Pick a city to show only tours that visit it",
+        )
+        city_search = "" if city_choice == "— All cities —" else city_choice
 
         min_d = int(tours["total_days"].min() or 1)
         max_d = int(tours["total_days"].max() or 30)
@@ -231,7 +237,8 @@ def main():
     if search.strip():
         filt = filt[filt["tour_name"].str.contains(search.strip(), case=False, na=False)]
     if city_search.strip():
-        filt = filt[filt["cities"].str.contains(city_search.strip(), case=False, na=False)]
+        city_urls = set(days.loc[days["city"] == city_search, "tour_url"])
+        filt = filt[filt["tour_url"].isin(city_urls)]
     if sel_states:
         filt = filt[filt["states"].apply(
             lambda s: any(code in (s or "").split(", ") for code in sel_states)

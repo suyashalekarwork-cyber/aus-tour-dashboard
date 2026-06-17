@@ -1,0 +1,4 @@
+
+=== 2026-06-16 15:17:07 ===
+  [city_synonym]  adelaide hills -> Adelaide
+  --- 1 changes ---

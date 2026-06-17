@@ -1,0 +1,24 @@
+# Source -> market segment.  Exactly two segments: "Tourism Board" or "Competitor".
+# Tourism Board = official tourism sites (aspirational "what's promoted").
+# Competitor    = anyone selling tours ("what's actually sold").
+# Hand-editable. Used by build_product_data_prototype.py. Unknown sources default to Competitor.
+
+# --- Tourism Board ---
+australia_com         -> Tourism Board
+westernaustralia_com  -> Tourism Board
+queensland_com        -> Tourism Board
+visitvictoria_com     -> Tourism Board
+sydney_com            -> Tourism Board
+discover_tasmania     -> Tourism Board
+
+# --- Competitor ---
+global_journeys       -> Competitor
+inside_australia      -> Competitor
+absolute_australia    -> Competitor
+make_my_trip          -> Competitor
+thomas_cook           -> Competitor
+sotc                  -> Competitor
+veena_world           -> Competitor
+kesari                -> Competitor
+scott_dunn            -> Competitor
+jacada                -> Competitor
