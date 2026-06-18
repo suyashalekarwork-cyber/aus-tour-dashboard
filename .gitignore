@@ -23,6 +23,11 @@ data/keywords/
 sampledata/
 prototype/output/
 
+# Build and Explore — runtime / sensitive
+*.exe
+SHARE_WITH_PM.txt
+corrections_history/
+
 # Local editor / agent config
 .claude/
 .vscode/

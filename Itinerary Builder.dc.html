@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./react.production.min.js"></script>
+<script src="./react-dom.production.min.js"></script>
+<script src="./babel.min.js"></script>
+<script src="./support.js"></script>
+<script src="./data.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0efed}
+input{font-family:inherit}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="font-family:'Helvetica Neue',Helvetica,'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;color:#1c1917;min-height:100vh;padding:24px;display:flex;justify-content:center">
+<div style="display:flex;width:100%;max-width:1200px;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden;background:#fafaf9;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+
+  <div style="width:188px;min-width:188px;background:#fff;border-right:0.5px solid #e7e5e4;padding:14px 12px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg> Tour Builder</div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:4px 0;width:100%">
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="{{ navBuilderStyle }}" onClick="{{ navBuilder }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg> Itinerary builder</div>
+      <div style="{{ navTemplatesStyle }}" onClick="{{ navTemplates }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg> Itinerary templates</div>
+      <div style="{{ navInsightsStyle }}" onClick="{{ navInsights }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg> Product insights</div>
+      <div style="{{ navGapStyle }}" onClick="{{ navGap }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 3 3v6"/><path d="M15.5 18H9a3 3 0 0 1-3-3V8.5"/></svg> Board vs operators</div>
+      <div style="{{ navDataStyle }}" onClick="{{ navData }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg> Tagged data</div>
+    </div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:4px 0;width:100%">
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Tours in dataset</div><div style="font-size:18px;font-weight:600">1,329</div></div>
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Distinct products</div><div style="font-size:18px;font-weight:600">3,223</div></div>
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Day rows</div><div style="font-size:18px;font-weight:600">9,596</div></div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+    <div style="background:#fff;border-bottom:0.5px solid #e7e5e4;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:16px;font-weight:600">{{ topTitle }}</div>
+        <div style="font-size:11px;color:#57534e;margin-top:1px">{{ topSub }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:6px;font-size:12px;background:{{ accentTint }};color:#27500A;border:0.5px solid #C0DD97;cursor:pointer" onClick="{{ exportWord }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg> Export</div>
+    </div>
+
+    <sc-if value="{{ showBuilder }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column">
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
+          <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
+            <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5">
+              <option value="{{ opt.key }}">{{ opt.name }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+          <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">Tour name</div>
+          <input value="{{ tourName }}" onChange="{{ onTourName }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;width:100%;min-width:180px" />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">Duration</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:26px;height:26px;border:0.5px solid #d6d3d1;border-radius:6px;background:#f5f5f4;display:flex;align-items:center;justify-content:center;font-size:16px;color:#57534e;cursor:pointer;user-select:none" onClick="{{ dec }}">−</div>
+            <div style="font-size:16px;font-weight:600;min-width:20px;text-align:center">{{ duration }}</div>
+            <div style="width:26px;height:26px;border:0.5px solid #d6d3d1;border-radius:6px;background:#f5f5f4;display:flex;align-items:center;justify-content:center;font-size:16px;color:#57534e;cursor:pointer;user-select:none" onClick="{{ inc }}">+</div>
+            <div style="font-size:12px;color:#57534e">days</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div style="background:#f5f5f4;border-radius:6px;padding:9px 12px"><div style="font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Days planned</div><div style="font-size:20px;font-weight:600">{{ daysPlanned }}</div><div style="font-size:10px;color:#a8a29e;margin-top:1px">of {{ duration }}</div></div>
+        <div style="background:#f5f5f4;border-radius:6px;padding:9px 12px"><div style="font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Products added</div><div style="font-size:20px;font-weight:600">{{ productsAdded }}</div></div>
+        <div style="background:#f5f5f4;border-radius:6px;padding:9px 12px"><div style="font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Themes covered</div><div style="font-size:20px;font-weight:600">{{ themesCovered }}</div><div style="font-size:10px;color:#a8a29e;margin-top:1px">of 8</div></div>
+        <div style="background:#f5f5f4;border-radius:6px;padding:9px 12px"><div style="font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Board alignment</div><div style="font-size:20px;font-weight:600">{{ boardAlignment }}%</div><div style="font-size:10px;color:#a8a29e;margin-top:1px">products featured by board</div></div>
+      </div>
+
+      <hr style="border:none;border-top:0.5px solid #e7e5e4">
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px;align-items:start">
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ days }}" as="day" hint-placeholder-count="7">
+            <div style="{{ day.cardStyle }}" onClick="{{ day.onSelect }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:0.5px solid #e7e5e4">
+                <div style="{{ day.badgeStyle }}">{{ day.label }}</div>
+                <input value="{{ day.location }}" onChange="{{ day.onLocation }}" onClick="{{ day.stop }}" placeholder="Add a location…" style="border:none;outline:none;background:transparent;font-size:12px;font-weight:600;color:#1c1917;flex:1;min-width:0" />
+                <sc-if value="{{ day.city }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#a8a29e;white-space:nowrap;flex-shrink:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>{{ day.city }}</span></sc-if>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <div style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+                <sc-if value="{{ day.hasDesc }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:12px;color:#57534e;line-height:1.5;border:0.5px solid #e7e5e4;border-radius:6px;padding:7px 9px;background:#f5f5f4">{{ day.desc }}</div>
+                </sc-if>
+                <sc-if value="{{ day.hasContent }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                    <sc-for list="{{ day.chips }}" as="chip" hint-placeholder-count="3">
+                      <span style="{{ chip.style }}" onClick="{{ chip.onClick }}" title="{{ chip.title }}">{{ chip.label }}<sc-if value="{{ chip.removable }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;margin-left:2px"><path d="M18 6 6 18M6 6l12 12"/></svg></sc-if></span>
+                    </sc-for>
+                    <sc-if value="{{ day.isActive }}" hint-placeholder-val="{{ false }}">
+                      <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:#fafaf9;color:#a8a29e;border:0.5px dashed #d6d3d1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> click suggestions →</span>
+                    </sc-if>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ day.isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:12px;color:#a8a29e;font-style:italic;padding:4px 0">{{ day.emptyText }}</div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden">
+            <div style="padding:9px 12px;border-bottom:0.5px solid #e7e5e4">
+              <div style="font-size:12px;font-weight:600;margin-bottom:1px">Suggestions for Day {{ activeDayNum }}</div>
+              <div style="font-size:11px;color:#57534e">{{ stateAbbr }} · click any chip to add</div>
+            </div>
+            <div style="display:flex;border-bottom:0.5px solid #e7e5e4">
+              <sc-for list="{{ suggestTabs }}" as="t" hint-placeholder-count="3">
+                <div style="{{ t.style }}" onClick="{{ t.onClick }}">{{ t.label }}</div>
+              </sc-for>
+            </div>
+            <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">{{ suggestLabel }}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px">
+                <sc-for list="{{ suggestChips }}" as="c" hint-placeholder-count="6">
+                  <span style="{{ c.style }}" onClick="{{ c.onClick }}" title="{{ c.title }}"><span style="font-size:11px;opacity:.6;font-weight:700">{{ c.iconChar }}</span> {{ c.label }}<sc-if value="{{ c.note }}" hint-placeholder-val="{{ false }}"><span style="opacity:.65;font-weight:400;margin-left:3px;font-style:italic">· {{ c.note }}</span></sc-if></span>
+                </sc-for>
+              </div>
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;margin-bottom:2px">Themes these cover</div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px">
+                <sc-for list="{{ themeCoverChips }}" as="tc" hint-placeholder-count="3">
+                  <span style="{{ tc.style }}">{{ tc.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font-size:11px;color:#a8a29e;margin-top:2px">{{ suggestHint }}</div>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden">
+            <div style="padding:9px 12px;border-bottom:0.5px solid #e7e5e4"><div style="font-size:12px;font-weight:600">Theme coverage</div></div>
+            <div style="padding:10px 12px;display:flex;flex-direction:column;gap:5px">
+              <sc-for list="{{ coverageBars }}" as="b" hint-placeholder-count="8">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="font-size:11px;color:#57534e;width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.label }}</div>
+                  <div style="flex:1;height:6px;background:#f5f5f4;border-radius:3px"><div style="{{ b.fillStyle }}"></div></div>
+                  <div style="{{ b.countStyle }}">{{ b.countText }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0;border-bottom:0.5px solid #e7e5e4;background:#fff;padding:0 16px">
+      <div style="padding:9px 12px 9px 0;font-size:12px;color:#a8a29e;border-bottom:2px solid transparent;white-space:nowrap">Research</div>
+      <sc-for list="{{ researchTabs }}" as="r" hint-placeholder-count="2">
+        <div style="{{ r.style }}" onClick="{{ r.onClick }}">{{ r.label }}</div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ showMarket }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:12px 16px;background:#fff;border-top:0.5px solid #e7e5e4">
+        <div style="font-size:11px;color:#57534e;margin-bottom:6px">Top products in {{ stateName }} — by number of distinct tours featuring them</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+          <div style="border:0.5px solid #e7e5e4;border-radius:6px;padding:8px 10px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:5px">Most popular {{ stateAbbr }} products</div>
+            <sc-for list="{{ marketBars }}" as="m" hint-placeholder-count="6">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                <div style="font-size:11px;color:#57534e;width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.label }}</div>
+                <div style="flex:1;height:6px;background:#f5f5f4;border-radius:3px"><div style="{{ m.fillStyle }}"></div></div>
+                <div style="font-size:10px;color:#a8a29e;min-width:22px;text-align:right">{{ m.count }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border:0.5px solid #e7e5e4;border-radius:6px;padding:8px 10px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:5px">Board-only gaps (not yet in operator tours)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+              <sc-for list="{{ gapBoardOnly }}" as="g" hint-placeholder-count="4">
+                <span style="{{ g.style }}" onClick="{{ g.onClick }}" title="Click to add to the active day">{{ g.label }}</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11px;color:#57534e;line-height:1.5">These are featured by the board but not picked up by competitors — potential differentiators for your itinerary.</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showGap }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:12px 16px;background:#fff;border-top:0.5px solid #e7e5e4">
+        <div style="font-size:11px;color:#57534e;margin-bottom:6px">Board vs operators in {{ stateName }} — where the aspirational and commercial views diverge</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="border:0.5px solid #e7e5e4;border-radius:6px;padding:8px 10px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:5px">Board only <span style="color:#a8a29e;font-weight:400">· gaps</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px"><sc-for list="{{ gapBoardOnly }}" as="g" hint-placeholder-count="4"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.45">Differentiators no operator sells yet.</div>
+          </div>
+          <div style="border:0.5px solid #e7e5e4;border-radius:6px;padding:8px 10px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:5px">In both</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px"><sc-for list="{{ gapBoth }}" as="g" hint-placeholder-count="6"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.45">Market consensus — safe, expected inclusions.</div>
+          </div>
+          <div style="border:0.5px solid #e7e5e4;border-radius:6px;padding:8px 10px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:5px">Operators only</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px"><sc-for list="{{ gapOperator }}" as="g" hint-placeholder-count="5"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.45">What rivals push that the board underplays.</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="background:#fff;border-top:0.5px solid #e7e5e4;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:12px;color:#57534e"><strong style="color:#1c1917;font-weight:600">{{ tourName }}</strong> · {{ duration }} days · {{ productsAdded }} products · {{ stateAbbr }}</div>
+      <div style="display:flex;gap:8px">
+        <div style="display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;border:0.5px solid #d6d3d1;background:#f5f5f4;color:#57534e;cursor:pointer" onClick="{{ exportCSV }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8"/></svg> Export CSV</div>
+        <div style="display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;border:0.5px solid #C0DD97;background:{{ accentTint }};color:#27500A;cursor:pointer" onClick="{{ exportWord }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg> Export Word doc</div>
+      </div>
+    </div>
+    </div></sc-if>
+
+    <sc-if value="{{ showTemplates }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff">
+        <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
+        <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
+          <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
+        </select>
+        <div style="font-size:12px;color:#a8a29e;margin-left:auto">Scraped from 16 board &amp; operator sources · pick one and edit it in the builder</div>
+      </div>
+      <div style="padding:14px 16px;background:#fafaf9;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start">
+        <sc-for list="{{ templateCards }}" as="t" hint-placeholder-count="3">
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div>
+                <div style="font-size:14px;font-weight:600;line-height:1.3">{{ t.name }}</div>
+                <div style="font-size:11px;color:#a8a29e;margin-top:2px">{{ t.source }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+                <span style="{{ t.typeStyle }}">{{ t.type }}</span>
+                <sc-if value="{{ t.isTop }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#27500A;background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:99px;padding:1px 8px">★ Most popular</span></sc-if>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#57534e;display:flex;flex-wrap:wrap;gap:8px"><span><strong style="color:#1c1917;font-weight:600">{{ t.dur }}</strong> days</span><span>·</span><span><strong style="color:#1c1917;font-weight:600">{{ t.prodCount }}</strong> products</span><span>·</span><span><strong style="color:#1c1917;font-weight:600">{{ t.themeCount }}</strong>/8 themes</span></div>
+            <div style="font-size:12px;color:#1c1917;line-height:1.5;display:flex;align-items:flex-start;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg><span>{{ t.route }}</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px"><sc-for list="{{ t.themeChips }}" as="tc" hint-placeholder-count="4"><span style="{{ tc.style }}">{{ tc.label }}</span></sc-for></div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#a8a29e;margin-bottom:3px"><span>Market popularity</span><span>{{ t.pop }} tours</span></div>
+              <div style="height:5px;background:#f5f5f4;border-radius:3px"><div style="{{ t.popStyle }}"></div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#EAF3DE;color:#27500A;border:0.5px solid #C0DD97;cursor:pointer" onClick="{{ t.onLoad }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Start from this template</div>
+              <div style="font-size:12px;color:#185FA5;cursor:pointer;font-weight:500;white-space:nowrap" onClick="{{ t.onToggle }}">{{ t.toggleLabel }}</div>
+            </div>
+            <sc-if value="{{ t.expanded }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:0.5px solid #e7e5e4;padding-top:9px;display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ t.dayList }}" as="d" hint-placeholder-count="4">
+                  <div style="display:flex;gap:8px;align-items:baseline">
+                    <span style="font-size:10px;font-weight:600;color:#27500A;background:#EAF3DE;border-radius:6px;padding:1px 7px;white-space:nowrap;flex-shrink:0">{{ d.label }}</span>
+                    <div style="font-size:12px;color:#1c1917"><strong style="font-weight:600">{{ d.city }}</strong> <span style="color:#57534e">— {{ d.products }}</span></div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showInsights }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff">
+        <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
+        <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
+          <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
+        </select>
+      </div>
+      <div style="padding:14px 16px;background:#fafaf9;display:grid;grid-template-columns:1.5fr 1fr;gap:12px;align-items:start">
+        <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:12px 14px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:1px">Most featured products in {{ stateName }}</div>
+          <div style="font-size:11px;color:#a8a29e;margin-bottom:10px">Popularity = number of distinct tours featuring the product</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <sc-for list="{{ allProducts }}" as="p" hint-placeholder-count="12">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="font-size:12px;color:#1c1917;width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.label }}</div>
+                <div style="flex:1;height:7px;background:#f5f5f4;border-radius:4px"><div style="{{ p.fillStyle }}"></div></div>
+                <div style="font-size:11px;color:#57534e;min-width:24px;text-align:right">{{ p.count }}</div>
+                <span style="{{ p.badgeStyle }}">{{ p.badge }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:12px 14px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:1px">Popularity by theme</div>
+          <div style="font-size:11px;color:#a8a29e;margin-bottom:10px">Total tour-appearances across the theme's products</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <sc-for list="{{ themePopBars }}" as="t" hint-placeholder-count="8">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#1c1917;margin-bottom:3px"><span>{{ t.label }}</span><span style="color:#57534e">{{ t.count }}</span></div>
+                <div style="height:7px;background:#f5f5f4;border-radius:4px"><div style="{{ t.fillStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showGapView }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff">
+        <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
+        <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
+          <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
+        </select>
+        <div style="font-size:12px;color:#a8a29e;margin-left:auto">click any chip to drop it into your active day</div>
+      </div>
+      <div style="padding:14px 16px;background:#fafaf9;display:flex;flex-direction:column;gap:12px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#633806">Board only</div><div style="font-size:22px;font-weight:700;color:#633806">{{ gapStats.boardOnly }}</div></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"><sc-for list="{{ gapBoardOnly }}" as="g" hint-placeholder-count="4"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.5">Featured by the tourism board but sold by no operator — your differentiators.</div>
+          </div>
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#0C447C">In both</div><div style="font-size:22px;font-weight:700;color:#0C447C">{{ gapStats.both }}</div></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"><sc-for list="{{ gapBoth }}" as="g" hint-placeholder-count="6"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.5">Market consensus — both board and operators feature these. Safe, expected inclusions.</div>
+          </div>
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:12px 14px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:#27500A">Operators only</div><div style="font-size:22px;font-weight:700;color:#27500A">{{ gapStats.operator }}</div></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"><sc-for list="{{ gapOperator }}" as="g" hint-placeholder-count="5"><span style="{{ g.style }}" onClick="{{ g.onClick }}">{{ g.label }}</span></sc-for></div>
+            <div style="font-size:11px;color:#57534e;line-height:1.5">Sold by competitors but underplayed by the board — established commercial strengths.</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showData }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
+          <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
+            <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px"><sc-for list="{{ dataFilters }}" as="f" hint-placeholder-count="3"><div style="{{ f.style }}" onClick="{{ f.onClick }}">{{ f.label }}</div></sc-for></div>
+      </div>
+      <div style="padding:14px 16px;background:#fafaf9">
+        <div style="font-size:11px;color:#57534e;margin-bottom:10px;line-height:1.5">Every scraped day is broken to the day level, then a transparent rules-based engine extracts named <strong style="color:#0C447C">products</strong> and maps each day to its <strong style="color:#27500A">themes</strong>. This is the asset every suggestion traces back to.</div>
+        <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:#f5f5f4;text-align:left">
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Tour</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Source</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Type</th>
+                <th style="padding:8px 8px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Day</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">City</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Location</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Product</th>
+                <th style="padding:8px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Themes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ taggedRows }}" as="r" hint-placeholder-count="14">
+                <tr style="{{ r.rowStyle }}">
+                  <td style="padding:7px 12px;color:#1c1917;border-top:0.5px solid #e7e5e4">{{ r.tour }}</td>
+                  <td style="padding:7px 12px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.source }}</td>
+                  <td style="padding:7px 12px;border-top:0.5px solid #e7e5e4"><span style="{{ r.typeStyle }}">{{ r.type }}</span></td>
+                  <td style="padding:7px 8px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.day }}</td>
+                  <td style="padding:7px 12px;color:#1c1917;border-top:0.5px solid #e7e5e4">{{ r.city }}</td>
+                  <td style="padding:7px 12px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.location }}</td>
+                  <td style="padding:7px 12px;color:#0C447C;font-weight:600;border-top:0.5px solid #e7e5e4">{{ r.products }}</td>
+                  <td style="padding:7px 12px;color:#27500A;border-top:0.5px solid #e7e5e4">{{ r.themes }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1c1917;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;box-shadow:0 6px 24px rgba(0,0,0,.2);animation:toastIn .2s ease;z-index:50;display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#97C459" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-4.5"/></svg> {{ toast }}</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:860},&quot;seedState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;WA&quot;,&quot;NT&quot;,&quot;QLD&quot;,&quot;TAS&quot;,&quot;VIC&quot;],&quot;default&quot;:&quot;WA&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#639922&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  THEMES = ['Nature & Scenery','Hiking & Walks','Beach & Coast','Wildlife','Food & Wine','Culture & History','Scenic Drives','City & Shopping'];
+
+  data = DATA;
+
+  state = this.initState((this.props && this.props.seedState) || 'WA');
+
+  initState(key){
+    const s = this.data[key];
+    const days = s.seed.days.map(d => ({location:d.location, city: (s.cities && s.cities[d.products[0]]) || '', desc:d.desc||'', products:[...d.products]}));
+    while (days.length < s.seed.duration) days.push({location:'', city:'', desc:'', products:[]});
+    return { stateKey:key, tourName:s.seed.tourName, duration:s.seed.duration, days, activeDay:0, suggestTab:'popular', researchTab:'market', toast:'', view:'builder', dataFilter:'all', expandedTpl:null };
+  }
+
+  cityOf(name){ const c=this.cur(); return (c.cities && c.cities[name]) || c.name; }
+
+  cur(){ return this.data[this.state.stateKey]; }
+  prodInfo(name){ return this.cur().products[name]; }
+  dayThemes(d){ return this.THEMES.filter(t => d.products.some(p => { const x=this.cur().products[p]; return x && x.t.includes(t); })); }
+
+  // --- actions ---
+  onState = (e) => this.setState(Object.assign(this.initState(e.target.value), {view:this.state.view, dataFilter:this.state.dataFilter, expandedTpl:null}));
+  setView(v){ this.setState({view:v}); }
+  setDataFilter(f){ this.setState({dataFilter:f}); }
+  toggleTpl(i){ this.setState({expandedTpl: this.state.expandedTpl===i ? null : i}); }
+  loadTemplate(i){
+    const t = this.cur().templates[i];
+    const days = t.days.map(prods => ({ products:[...prods], city: this.cityOf(prods[0]), location: this.cityOf(prods[0]), desc:'' }));
+    this.setState({ tourName: t.name, duration: days.length, days, activeDay:0, view:'builder', expandedTpl:null });
+    this.showToast('Loaded template · '+t.name);
+  }
+  onTourName = (e) => this.setState({tourName: e.target.value});
+  setDuration(n){
+    n = Math.max(2, Math.min(14, n));
+    const days = this.state.days.slice();
+    while (days.length < n) days.push({location:'', desc:'', products:[]});
+    while (days.length > n) days.pop();
+    this.setState({duration:n, days, activeDay: Math.min(this.state.activeDay, n-1)});
+  }
+  selectDay(i){ this.setState({activeDay:i}); }
+  setLocation(i, val){ const days=this.state.days.map((d,k)=> k===i ? {...d, location:val} : d); this.setState({days}); }
+  toggleProduct(name){
+    const i = this.state.activeDay;
+    const days = this.state.days.map((d,k)=>{
+      if (k!==i) return d;
+      const has = d.products.includes(name);
+      return {...d, products: has ? d.products.filter(p=>p!==name) : [...d.products, name]};
+    });
+    this.setState({days});
+  }
+  removeProduct(i, name){ const days=this.state.days.map((d,k)=> k===i ? {...d, products:d.products.filter(p=>p!==name)} : d); this.setState({days}); }
+  setTab(t){ this.setState({suggestTab:t}); }
+  setResearch(t){ this.setState({researchTab:t}); }
+
+  showToast(msg){ this.setState({toast:msg}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:''}), 2600); }
+  download(filename, content, mime){
+    const blob = new Blob([content], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+  exportCSV = () => {
+    const rows = [['Day','Location','Products','Themes']];
+    this.state.days.forEach((d,i)=> rows.push([String(i+1), d.location||'(unplanned)', d.products.join('; '), this.dayThemes(d).join('; ')]));
+    const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    this.download((this.state.tourName||'itinerary')+'.csv', csv, 'text/csv;charset=utf-8;');
+    this.showToast('Exported CSV · '+this.state.tourName);
+  };
+  exportWord = () => {
+    const c = this.cur();
+    let body = '<h1 style="font-family:Calibri,Arial">'+this.state.tourName+'</h1>';
+    body += '<p style="font-family:Calibri,Arial;color:#555">'+c.name+' · '+this.state.duration+' days</p>';
+    this.state.days.forEach((d,i)=>{
+      body += '<h3 style="font-family:Calibri,Arial">Day '+(i+1)+' — '+(d.location||'Not yet planned')+'</h3>';
+      if (d.desc) body += '<p style="font-family:Calibri,Arial">'+d.desc+'</p>';
+      if (d.products.length) body += '<p style="font-family:Calibri,Arial"><b>Products:</b> '+d.products.join(', ')+'</p>';
+      const th=this.dayThemes(d); if (th.length) body += '<p style="font-family:Calibri,Arial"><b>Themes:</b> '+th.join(', ')+'</p>';
+    });
+    const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>'+body+'</body></html>';
+    this.download((this.state.tourName||'itinerary')+'.doc', html, 'application/msword');
+    this.showToast('Exported Word doc · '+this.state.tourName);
+  };
+
+  // --- styling helpers ---
+  chip(kind, opts){
+    opts = opts||{};
+    const base = {display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'99px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'};
+    const map = {
+      prod:{background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #B5D4F4'},
+      board:{background:'#FAEEDA',color:'#633806',border:'0.5px solid #FAC775'},
+      theme:{background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97'}
+    };
+    const o = Object.assign({}, base, map[kind]);
+    if (opts.cursor) o.cursor = opts.cursor;
+    if (opts.faded) o.opacity = 0.55;
+    return o;
+  }
+
+  renderVals(){
+    const accent = (this.props && this.props.accent) || '#639922';
+    const accentTint = '#EAF3DE';
+    const c = this.cur();
+    const themes = this.THEMES;
+    const days = this.state.days;
+    const ad = this.state.activeDay;
+    const active = days[ad] || {products:[]};
+    const entries = Object.entries(c.products);
+
+    // metrics
+    let productsAdded = 0, boardCount = 0;
+    const themeSet = new Set();
+    days.forEach(d => d.products.forEach(p => {
+      productsAdded++;
+      const info = c.products[p];
+      if (info){ if (info.board) boardCount++; info.t.forEach(t=>themeSet.add(t)); }
+    }));
+    const daysPlanned = days.filter(d=>d.products.length>0).length;
+    const boardAlignment = productsAdded ? Math.round(boardCount/productsAdded*100) : 0;
+
+    // day cards
+    const dayCards = days.map((d,i)=>{
+      const isActive = i===ad;
+      const isEmpty = d.products.length===0;
+      const prodChips = d.products.map(p=>{
+        const info = c.products[p];
+        return { label:p, removable:true, title:'Click to remove',
+          style: this.chip(info && info.board ? 'board':'prod', {cursor:'pointer'}),
+          onClick: (e)=>{ e.stopPropagation(); this.removeProduct(i, p); } };
+      });
+      const themeChips = this.dayThemes(d).map(t=>({ label:t, removable:false, title:'', style:this.chip('theme') }));
+      return {
+        label:'Day '+(i+1), location:d.location, city:d.city, desc:d.desc, hasDesc: !!d.desc,
+        chips:[...prodChips, ...themeChips], hasContent: !isEmpty, isEmpty, isActive,
+        emptyText: isActive ? 'Click a suggestion chip to add products to this day →' : 'Choose products from the suggestion panel →',
+        cardStyle: { background:'#fff', border:'0.5px solid '+(isActive?accent:'#e7e5e4'), borderRadius:'10px', overflow:'hidden', cursor:'pointer', opacity:(isEmpty && !isActive)?0.6:1, transition:'border-color .15s,opacity .15s', boxShadow: isActive?'0 0 0 1px '+accent:'none' },
+        badgeStyle: { borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:600, whiteSpace:'nowrap', background:(d.products.length>0?'#EAF3DE':'#f5f5f4'), color:(d.products.length>0?'#27500A':'#a8a29e') },
+        onSelect: ()=>this.selectDay(i),
+        onLocation: (e)=>this.setLocation(i, e.target.value),
+        stop: (e)=>e.stopPropagation()
+      };
+    });
+
+    // suggestion panel
+    const tab = this.state.suggestTab;
+    let list;
+    if (tab==='popular') list = entries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    else if (tab==='competitors') list = entries.filter(e=>e[1].op).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    else list = entries.filter(e=>e[1].board).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    const chipKind = tab==='popular' ? 'prod' : (tab==='competitors' ? 'board' : 'theme');
+    const dayOf = {};
+    days.forEach((d,di)=> d.products.forEach(p=>{ if (dayOf[p]===undefined) dayOf[p]=di; }));
+    const suggestChips = list.map(([name,info])=>{
+      const onActive = active.products.includes(name);
+      const elsewhereIdx = (!onActive && dayOf[name]!==undefined) ? dayOf[name] : -1;
+      const inItinerary = onActive || elsewhereIdx>=0;
+      let note = '';
+      if (onActive) note = 'on this day';
+      else if (elsewhereIdx>=0) note = 'Day '+(elsewhereIdx+1);
+      return { label:name, iconChar: inItinerary?'✓':'+', note,
+        title: onActive ? 'Already on this day — click to remove' : (elsewhereIdx>=0 ? ('Already in your itinerary on Day '+(elsewhereIdx+1)) : ('Add to Day '+(ad+1))),
+        style: this.chip(chipKind, {cursor:'pointer', faded:inItinerary}),
+        onClick: ()=>this.toggleProduct(name) };
+    });
+    const coverThemes = [];
+    list.forEach(([n,info])=> info.t.forEach(t=>{ if(!coverThemes.includes(t)) coverThemes.push(t); }));
+    const themeCoverChips = coverThemes.slice(0,5).map(t=>({label:t, style:this.chip('theme')}));
+    const pops = list.map(e=>e[1].pop);
+    const minP = pops.length?Math.min(...pops):0, maxP = pops.length?Math.max(...pops):0;
+    const suggestLabel = tab==='popular' ? ('Most used in '+c.abbr+' tours') : (tab==='competitors' ? 'Included by competitor operators' : 'Featured by the tourism board');
+    const suggestHint = tab==='popular' ? ('Appearing in '+minP+'–'+maxP+' tours across the dataset') : (tab==='competitors' ? ('Sold by '+minP+'–'+maxP+' competitor operators') : 'The aspirational view — anchor your itinerary here');
+
+    const mkTab = (key,label)=>({ label, onClick:()=>this.setTab(key),
+      style: { flex:1, padding:'7px 4px', fontSize:'11px', fontWeight:600, textAlign:'center', cursor:'pointer', borderBottom:'2px solid '+(this.state.suggestTab===key?accent:'transparent'), color:(this.state.suggestTab===key?'#27500A':'#57534e') } });
+    const suggestTabs = [mkTab('popular','Popular'), mkTab('competitors','Competitors'), mkTab('board','Board')];
+
+    // theme coverage bars
+    const counts = themes.map(t=>({t, c: days.filter(d=>d.products.some(p=>{const x=c.products[p];return x&&x.t.includes(t);})).length}));
+    const maxC = Math.max(1, ...counts.map(x=>x.c));
+    const coverageBars = counts.map(x=>({
+      label:x.t, countText:x.c+'d',
+      fillStyle:{ height:'6px', borderRadius:'3px', transition:'width .3s', background:'#639922', width:(x.c===0?0:Math.max(14, Math.round(x.c/maxC*100)))+'%' },
+      countStyle:{ fontSize:'10px', minWidth:'22px', textAlign:'right', color: x.c===0?'#E24B4A':'#a8a29e', fontWeight: x.c===0?600:400 }
+    }));
+
+    // research — market
+    const sorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop);
+    const top = sorted.slice(0,6);
+    const maxPop = top.length?top[0][1].pop:1;
+    const marketBars = top.map(([name,info])=>({ label:name, count:info.pop,
+      fillStyle:{ height:'6px', borderRadius:'3px', background:'#378ADD', width:Math.round(info.pop/maxPop*100)+'%' } }));
+
+    // research — gap buckets
+    const addChip = (name, kind)=>({ label:name, style:this.chip(kind,{cursor:'pointer'}), onClick:()=>this.toggleProduct(name) });
+    const gapBoardOnly = entries.filter(e=>e[1].board && !e[1].op).map(e=>addChip(e[0],'board'));
+    const gapBoth = entries.filter(e=>e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'prod'));
+    const gapOperator = entries.filter(e=>!e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'theme'));
+    const gapStats = { boardOnly:gapBoardOnly.length, both:gapBoth.length, operator:gapOperator.length };
+
+    // --- Product insights (full view) ---
+    const allSorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop);
+    const maxAll = allSorted.length ? allSorted[0][1].pop : 1;
+    const allProducts = allSorted.map(([name,info])=>({
+      label:name, count:info.pop,
+      badge: info.board ? (info.op?'Both':'Board only') : 'Operators',
+      badgeStyle: Object.assign(this.chip(info.board?(info.op?'prod':'board'):'theme'), {fontSize:'10px',padding:'1px 7px'}),
+      fillStyle:{ height:'7px', borderRadius:'4px', background:'#378ADD', width:Math.round(info.pop/maxAll*100)+'%' }
+    }));
+    const themePop = themes.map(t=>{ let sum=0; entries.forEach(([n,info])=>{ if(info.t.includes(t)) sum+=info.pop; }); return {t,sum}; });
+    const maxTheme = Math.max(1, ...themePop.map(x=>x.sum));
+    const themePopBars = themePop.slice().sort((a,b)=>b.sum-a.sum).map(x=>({
+      label:x.t, count:x.sum,
+      fillStyle:{ height:'7px', borderRadius:'4px', background:'#639922', width:Math.round(x.sum/maxTheme*100)+'%' }
+    }));
+
+    // --- Tagged data (full view) ---
+    const df = this.state.dataFilter || 'all';
+    const rawSample = c.taggedSample || [];
+    const taggedRows = rawSample.filter(r=> df==='all' || (df==='board'&&r.type==='Board') || (df==='comp'&&r.type==='Competitor')).map((r,i)=>({
+      tour:r.tour, source:r.source, type:r.type, day:r.day, city:r.city, location:r.location, products:r.products, themes:r.themes,
+      rowStyle:{ background: i%2 ? '#fafaf9' : '#fff' },
+      typeStyle: Object.assign(this.chip(r.type==='Board'?'board':'prod'), {fontSize:'10px',padding:'1px 7px'})
+    }));
+    const dataFilters = [['all','All sources'],['board','Board'],['comp','Competitor']].map(([k,l])=>({
+      label:l, onClick:()=>this.setDataFilter(k),
+      style:{ padding:'5px 11px', fontSize:'11px', fontWeight:600, borderRadius:'6px', cursor:'pointer', border:'0.5px solid '+(df===k?'#C0DD97':'#d6d3d1'), background:(df===k?'#EAF3DE':'#fff'), color:(df===k?'#27500A':'#57534e') }
+    }));
+
+    // --- Itinerary templates (library) ---
+    const maxTplPop = Math.max(1, ...c.templates.map(t=>t.pop));
+    const topPop = Math.max(...c.templates.map(t=>t.pop));
+    const templateCards = c.templates.map((t,i)=>{
+      const dur = t.days.length;
+      let prodCount = 0; const tThemes = new Set(); const route = [];
+      t.days.forEach(prods=>{
+        prods.forEach(p=>{ prodCount++; const info=c.products[p]; if(info) info.t.forEach(x=>tThemes.add(x)); });
+        const cy = this.cityOf(prods[0]); if (route[route.length-1]!==cy) route.push(cy);
+      });
+      const expanded = this.state.expandedTpl===i;
+      const dayList = t.days.map((prods,di)=>({ label:'Day '+(di+1), city:this.cityOf(prods[0]), products:prods.join(', ') }));
+      return {
+        name:t.name, source:t.source, type:t.type, pop:t.pop, dur, prodCount, themeCount:tThemes.size,
+        route: route.join('  \u2192  '),
+        isTop: t.pop===topPop,
+        typeStyle: Object.assign(this.chip(t.type==='Board'?'board':'prod'), {fontSize:'10px',padding:'1px 8px'}),
+        popStyle:{ height:'5px', borderRadius:'3px', background: t.type==='Board'?'#EF9F27':'#378ADD', width:Math.round(t.pop/maxTplPop*100)+'%' },
+        themeChips: [...tThemes].slice(0,6).map(x=>({label:x, style:Object.assign(this.chip('theme'),{fontSize:'10px',padding:'1px 7px'})})),
+        expanded, dayList,
+        onToggle:()=>this.toggleTpl(i), onLoad:()=>this.loadTemplate(i),
+        toggleLabel: expanded ? 'Hide day-by-day' : 'Preview day-by-day'
+      };
+    });
+
+    // --- nav + topbar ---
+    const view = this.state.view || 'builder';
+    const navStyle = (k)=>Object.assign({display:'flex',alignItems:'center',gap:'8px',padding:'7px 9px',borderRadius:'6px',fontSize:'12px',cursor:'pointer',transition:'background .12s'}, view===k?{background:'#EAF3DE',color:'#27500A',fontWeight:600}:{color:'#57534e'});
+    const titles = {
+      builder:['Itinerary builder','Design your tour day by day — suggestions drawn from market data'],
+      templates:['Itinerary templates','Start from a real scraped tour, then edit it in the builder'],
+      insights:['Product insights','What dominates the market — products ranked by tour count'],
+      gap:['Board vs operators','Where the aspirational and commercial views diverge'],
+      data:['Tagged data','The structured day-level asset behind every suggestion']
+    };
+
+    const rTab = (key,label)=>({ label, onClick:()=>this.setResearch(key),
+      style:{ padding:'9px 12px', fontSize:'12px', cursor:'pointer', whiteSpace:'nowrap', borderBottom:'2px solid '+(this.state.researchTab===key?'#185FA5':'transparent'), color:(this.state.researchTab===key?'#185FA5':'#57534e'), fontWeight:(this.state.researchTab===key?600:400) } });
+    const researchTabs = [rTab('market','Market data'), rTab('gap','Board vs operators')];
+
+    return {
+      accentTint,
+      stateKey:this.state.stateKey, stateAbbr:c.abbr, stateName:c.name, tourName:this.state.tourName,
+      duration:this.state.duration, activeDayNum: ad+1,
+      stateOptions: Object.keys(this.data).map(k=>({key:k, name:this.data[k].name})),
+      onState:this.onState, onTourName:this.onTourName,
+      inc:()=>this.setDuration(this.state.duration+1), dec:()=>this.setDuration(this.state.duration-1),
+      daysPlanned, productsAdded, themesCovered: themeSet.size, boardAlignment,
+      days: dayCards,
+      suggestTabs, suggestChips, themeCoverChips, suggestLabel, suggestHint,
+      coverageBars, marketBars, gapBoardOnly, gapBoth, gapOperator,
+      researchTabs, showMarket:this.state.researchTab==='market', showGap:this.state.researchTab==='gap',
+      goMarket:()=>this.setResearch('market'), goGap:()=>this.setResearch('gap'),
+      view, showBuilder:view==='builder', showTemplates:view==='templates', showInsights:view==='insights', showGapView:view==='gap', showData:view==='data',
+      topTitle:titles[view][0], topSub:titles[view][1],
+      navBuilderStyle:navStyle('builder'), navTemplatesStyle:navStyle('templates'), navInsightsStyle:navStyle('insights'), navGapStyle:navStyle('gap'), navDataStyle:navStyle('data'),
+      navBuilder:()=>this.setView('builder'), navTemplates:()=>this.setView('templates'), navInsights:()=>this.setView('insights'), navGap:()=>this.setView('gap'), navData:()=>this.setView('data'),
+      templateCards,
+      gapStats, allProducts, themePopBars, taggedRows, dataFilters,
+      exportCSV:this.exportCSV, exportWord:this.exportWord, toast:this.state.toast
+    };
+  }
+}
+</script>
+<script>
+(function(){
+  var v=null;
+  function check(){
+    fetch('/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+      if(v===null){v=d.v;}
+      else if(d.v!==v){location.reload(true);}
+    }).catch(function(){});
+  }
+  setInterval(check,3000);
+  check();
+})();
+</script>
+</body>
+</html>
