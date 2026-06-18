@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.xlsx
+*.exe
+SHARE_WITH_PM.txt
+corrections_history/

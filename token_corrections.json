@@ -1,0 +1,324 @@
+{
+  "rename": {
+    "Western Australia's": "Western Australia",
+    "South Australia's": "South Australia",
+    "Gold Coast Hotel": "Gold Coast",
+    "Emma Gorge Resort": "Emma Gorge",
+    "Top End's": "Top End",
+    "Kings Canyon Resort": "Kings Canyon",
+    "Arrive Broome": "Broome",
+    "Gold Coast's": "Gold Coast",
+    "Kangaroo Island's": "Kangaroo Island",
+    "Tangalooma Island Resort": "Tangalooma Island",
+    "Brighton Beach's": "Brighton Beach",
+    "El Questro's": "El Questro",
+    "Northern Territory's": "Northern Territory",
+    "Southern Hemisphere's": "Southern Hemisphere",
+    "Karri Valley Resort": "Karri Valley",
+    "Magnetic Island's": "Magnetic Island",
+    "Royal Mail Hotel": "Royal Mail",
+    "Wilpena Pound Resort": "Wilpena Pound",
+    "Monarto Safari Resort": "Monarto Safari",
+    "Kingfisher Bay Resort": "Kingfisher Bay",
+    "Margaret River's": "Margaret River",
+    "Sydney City Centre Hotel": "Sydney City Centre",
+    "Prairie Hotel": "Prairie",
+    "Watervale Hotel": "Watervale",
+    "Cape Tourville's": "Cape Tourville",
+    "Adelaide CBD Hotel": "Adelaide CBD",
+    "Port Jackson's": "Port Jackson",
+    "Standard Hotel": "Standard",
+    "Island Hotel": "Island",
+    "Cradle Mountain Hotel": "Cradle Mountain",
+    "Pirate's": "Pirate",
+    "Uluru-kata Tjuta National Park": "Uluru-Kata Tjuta National Park",
+    "Sydney Hotel": "Sydney",
+    "Birdsville Hotel": "Birdsville",
+    "Depart Broome": "Broome",
+    "Eyre Peninsula's": "Eyre Peninsula",
+    "Reef View Hotel": "Reef View",
+    "Sheraton Grand Mirage Resort": "Sheraton Grand Mirage",
+    "Central Australia's": "Central Australia",
+    "Mercure Kakadu Crocodile Hotel": "Mercure Kakadu Crocodile",
+    "Lady Bay Resort": "Lady Bay",
+    "Great Southern's": "Great Southern",
+    "sunrise stop in Marla this morning": "Sunrise Stop in Marla This Morning",
+    "Brisbane Hotel - Shared Transfer": "Brisbane Hotel - Shared",
+    "Alice Spring Hotel": "Alice Spring",
+    "Green Island's": "Green Island",
+    "Desert Hotel": "Desert",
+    "Maluku province": "Maluku Province",
+    "Port Nelson's": "Port Nelson",
+    "Adelaide To Kangaroo Island": "Adelaide to Kangaroo Island",
+    "Kangaroo Island To Adelaide": "Kangaroo Island to Adelaide",
+    "Alice Springs to Kings Canyon": "Alice Springs To Kings Canyon",
+    "Lizard Island Resort": "Lizard Island",
+    "Phillip Island's": "Phillip Island",
+    "Calile Hotel": "Calile",
+    "Bremer Bay Resort": "Bremer Bay",
+    "Empire Hotel": "Empire",
+    "Emporium Hotel": "Emporium",
+    "Brisbane Hotel": "Brisbane",
+    "its ‘Tunnel of Time'": "Its ‘tunnel of Time'",
+    "Eco Beach Resort": "Eco Beach",
+    "Strahan Village's": "Strahan Village",
+    "Barossa Valley's": "Barossa Valley",
+    "Western Tasmania's": "Western Tasmania",
+    "Henry Jones Art Hotel's": "Henry Jones Art Hotel",
+    "Mount Field National Park's": "Mount Field National Park",
+    "Adelaide Marriott Hotel": "Adelaide Marriott",
+    "Ashmore Reef's": "Ashmore Reef",
+    "Wineglass Bay - Woolmer's": "Wineglass Bay - Woolmer",
+    "Shark Bay's": "Shark Bay",
+    "Kakadu National Park to Darwin": "Kakadu National Park To Darwin",
+    "Seppeltsfield Winery's": "Seppeltsfield Winery",
+    "Flores Island's": "Flores Island",
+    "Mount Kelimutu's": "Mount Kelimutu",
+    "Horseshoe Bay": "Horseshoe bay",
+    "returning to Cairns in style via helicopter": "Returning to Cairns in Style Via Helicopter",
+    "Kings Canyon to Uluru-Kata Tjuta National Park": "Kings Canyon To Uluru-kata Tjuta National Park",
+    "Return Ferry": "Ferry",
+    "sunrise stop in Marla today": "Sunrise Stop in Marla Today",
+    "Coober Pedy sightseeing": "Coober Pedy Sightseeing",
+    "K’Gari (Fraser Island)": "K’gari (Fraser Island)",
+    "Return River": "River",
+    "Perth to Margaret River": "Perth To Margaret River",
+    "spotting the beautiful 12 Apostles on the way": "Spotting the Beautiful 12 Apostles on the Way",
+    "Provincial Hotel": "Provincial",
+    "Old Clare Hotel": "Old Clare",
+    "Jackalope Hotel": "Jackalope",
+    "Freycinet Resort": "Freycinet",
+    "Derwent Bridge Wilderness Hotel": "Derwent Bridge Wilderness",
+    "W Hotel": "W",
+    "Watsons Bay Boutique Hotel": "Watsons Bay Boutique",
+    "Paramount House Hotel": "Paramount House",
+    "Mount Barker's": "Mount Barker",
+    "Brisbane CBD Hotel": "Brisbane CBD"
+  },
+  "split": {
+    "Uluru Sunrise & Kata Tjuta": [
+      "Uluru Sunrise",
+      "Kata Tjuta"
+    ],
+    "Freycinet National Park & Wineglass Bay": [
+      "Freycinet National Park",
+      "Wineglass Bay"
+    ],
+    "Sacred Sites & Sunset": [
+      "Sacred Sites",
+      "Sunset"
+    ],
+    "Tasmanian Museum & Art Gallery": [
+      "Tasmanian Museum",
+      "Art Gallery"
+    ],
+    "Check Out & Onward Travel": [
+      "Check Out",
+      "Onward Travel"
+    ],
+    "Uluru – Sacred Sites & Sunset": [
+      "Uluru – Sacred Sites",
+      "Sunset"
+    ],
+    "Talbot Bay & Horizontal Falls": [
+      "Talbot Bay",
+      "Horizontal Falls"
+    ],
+    "North to Wyndham & Kununurra": [
+      "North to Wyndham",
+      "Kununurra"
+    ],
+    "Kings Canyon & Outback Panoramas": [
+      "Kings Canyon",
+      "Outback Panoramas"
+    ],
+    "Uluru Sunrise & Field of Light": [
+      "Uluru Sunrise",
+      "Field of Light"
+    ],
+    "Uluru & Kata Tjuta": [
+      "Uluru",
+      "Kata Tjuta"
+    ],
+    "Bondi Beach & BBQ": [
+      "Bondi Beach",
+      "BBQ"
+    ],
+    "Sydney Zoo & Cruise": [
+      "Sydney Zoo",
+      "Cruise"
+    ],
+    "Sydney Zoo & Cruise DT1 Meals: Breakfast": [
+      "Sydney Zoo",
+      "Cruise DT1 Meals: Breakfast"
+    ],
+    "Bradman Museum & International Cricket Hall of Fame": [
+      "Bradman Museum",
+      "International Cricket Hall of Fame"
+    ],
+    "Koala & Wildlife Park": [
+      "Koala",
+      "Wildlife Park"
+    ],
+    "Holt St Wharf & V.V Inclusions": [
+      "Holt St Wharf",
+      "V.V Inclusions"
+    ],
+    "Level 77 & 78": [
+      "Level 77",
+      "78"
+    ],
+    "Canberra & Floriade": [
+      "Canberra",
+      "Floriade"
+    ],
+    "Whitehaven Beach & Hamilton Island": [
+      "Whitehaven Beach",
+      "Hamilton Island"
+    ],
+    "Ancient Empire & Valley of the Giants": [
+      "Ancient Empire",
+      "Valley of the Giants"
+    ],
+    "Uluru Sunrise & Field of Light – Depart Uluru": [
+      "Uluru Sunrise",
+      "Field of Light – Depart Uluru"
+    ],
+    "Montgomery Reef & Freshwater Cove": [
+      "Montgomery Reef",
+      "Freshwater Cove"
+    ],
+    "Hunter River & Mitchell Falls": [
+      "Hunter River",
+      "Mitchell Falls"
+    ],
+    "Fire & Beauty Garden": [
+      "Fire",
+      "Beauty Garden"
+    ],
+    "Yarra Valley Chocolaterie & Ice Creamery": [
+      "Yarra Valley Chocolaterie",
+      "Ice Creamery"
+    ],
+    "Beaconsfield Mine & Heritage Centre": [
+      "Beaconsfield Mine",
+      "Heritage Centre"
+    ],
+    "Mine & Heritage Centre": [
+      "Mine",
+      "Heritage Centre"
+    ],
+    "Kalgoorlie & Cook": [
+      "Kalgoorlie",
+      "Cook"
+    ],
+    "Blue Mountains & Sydney": [
+      "Blue Mountains",
+      "Sydney"
+    ],
+    "Kuranda Scenic Railway & Skyrail": [
+      "Kuranda Scenic Railway",
+      "Skyrail"
+    ],
+    "Adelaide & Hahndorf": [
+      "Adelaide",
+      "Hahndorf"
+    ],
+    "Port Lincoln & Coffin Bay": [
+      "Port Lincoln",
+      "Coffin Bay"
+    ],
+    "Uluru & The Outback": [
+      "Uluru",
+      "The Outback"
+    ],
+    "Uluru To A Skyrail & More In Queensland": [
+      "Uluru To A Skyrail",
+      "More In Queensland"
+    ],
+    "Arts & Cultural Centre": [
+      "Arts",
+      "Cultural Centre"
+    ],
+    "William Creek & Painted Hills": [
+      "William Creek",
+      "Painted Hills"
+    ],
+    "Cairns & Surrounds": [
+      "Cairns",
+      "Surrounds"
+    ],
+    "Port Essington & The Historic Victoria Settlement": [
+      "Port Essington",
+      "The Historic Victoria Settlement"
+    ],
+    "Fishing & 4WD Adventure": [
+      "Fishing",
+      "4WD Adventure"
+    ],
+    "Oodnadatta Track to William Creek & Painted Hills to Coober Pedy": [
+      "Oodnadatta Track to William Creek",
+      "Painted Hills to Coober Pedy"
+    ],
+    "Bigge Island & Careening Bay": [
+      "Bigge Island",
+      "Careening Bay"
+    ],
+    "Cyclone Creek & Montgomery Reef": [
+      "Cyclone Creek",
+      "Montgomery Reef"
+    ],
+    "Niigi Niigi (Sealy Lookout) & Byron Bay": [
+      "Niigi Niigi (Sealy Lookout)",
+      "Byron Bay"
+    ],
+    "Rottnest Island Bike & Ferry Package": [
+      "Rottnest Island Bike",
+      "Ferry Package"
+    ],
+    "Tunnel Creek & Windjana": [
+      "Tunnel Creek",
+      "Windjana"
+    ],
+    "Airlie Beach & Whitsunday Islands (Tuesday)": [
+      "Airlie Beach",
+      "Whitsunday Islands (Tuesday)"
+    ],
+    "Cairns & Great Barrier Reef": [
+      "Cairns",
+      "Great Barrier Reef"
+    ],
+    "Melbourne River Cruises - Port & Docklands Cruise": [
+      "Melbourne River Cruises - Port",
+      "Docklands Cruise"
+    ],
+    "Bradman Museum & International Cricket Hall of Fame Meals: Breakfast": [
+      "Bradman Museum",
+      "International Cricket Hall of Fame Meals: Breakfast"
+    ],
+    "ReefView Hotel & Palm Bungalows Check": [
+      "ReefView Hotel",
+      "Palm Bungalows Check"
+    ],
+    "Bradman Museum & International Cricket": [
+      "Bradman Museum",
+      "International Cricket"
+    ],
+    "Snorkeling gear Sightseeing & Activities: -": [
+      "Snorkeling gear Sightseeing",
+      "Activities: -"
+    ],
+    "Eco Centre Sightseeing & Activities: -": [
+      "Eco Centre Sightseeing",
+      "Activities: -"
+    ],
+    "Fitzroy Crossing - Halls Creek": [
+      "Fitzroy Crossing",
+      "Halls Creek"
+    ]
+  },
+  "delete": [
+    "Farewell Darwin",
+    "Senses Spa#"
+  ]
+}
