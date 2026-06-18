@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0efed}
+select{font-family:inherit}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="font-family:'Helvetica Neue',Helvetica,'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;color:#1c1917;min-height:100vh;padding:24px;display:flex;justify-content:center">
+<div style="display:flex;width:100%;max-width:1340px;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden;background:#fafaf9;box-shadow:0 1px 3px rgba(0,0,0,.04);animation:pageIn .35s ease both">
+
+  <div style="width:206px;min-width:206px;background:#fff;border-right:0.5px solid #e7e5e4;padding:14px 14px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12.5" y="6" width="3" height="11"/><rect x="18" y="13" width="3" height="4"/></svg> Portfolio analytics</div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0;width:100%">
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:12px;background:#EAF3DE;color:#27500A;font-weight:600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> Dashboard</div>
+      <a href="Itinerary Builder.dc.html" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:12px;color:#57534e;text-decoration:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg> Itinerary builder</a>
+      <a href="Token Editor.dc.html" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:6px;font-size:12px;color:#57534e;text-decoration:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg> Data quality</a>
+    </div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0;width:100%">
+    <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em">Dataset</div>
+    <div style="padding:0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Tours analysed</div><div style="font-size:18px;font-weight:600">835</div></div>
+    <div style="padding:0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Distinct products</div><div style="font-size:18px;font-weight:600">412</div></div>
+    <div style="padding:0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Day rows</div><div style="font-size:18px;font-weight:600">7,635</div></div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0;width:100%">
+    <div style="background:#f5f5f4;border-radius:8px;padding:10px 11px;font-size:11px;color:#57534e;line-height:1.55"><strong style="color:#1c1917;font-weight:600">Read-only view.</strong> Numbers refresh from the tagged dataset nightly. Use the filters to scope by state and period.</div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+    <div style="background:#fff;border-bottom:0.5px solid #e7e5e4;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:16px;font-weight:600">Portfolio dashboard</div>
+        <div style="font-size:11px;color:#57534e;margin-top:1px">{{ headerSub }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;cursor:pointer">
+          <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="6"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
+        </select>
+        <div style="display:flex;border:0.5px solid #d6d3d1;border-radius:6px;overflow:hidden">
+          <sc-for list="{{ periodTabs }}" as="t" hint-placeholder-count="3"><div style="{{ t.style }}" onClick="{{ t.onClick }}">{{ t.label }}</div></sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;background:#fafaf9">
+
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+          <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:14px 15px;display:flex;flex-direction:column;gap:7px">
+            <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em">{{ k.eyebrow }}</div>
+            <div style="display:flex;align-items:baseline;gap:7px"><div style="font-size:26px;font-weight:600;line-height:1;letter-spacing:-.01em">{{ k.value }}</div><div style="{{ k.deltaStyle }}">{{ k.deltaText }}</div></div>
+            <div style="font-size:11px;color:#57534e">{{ k.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px">
+
+        <div style="grid-column:span 8;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+            <div>
+              <div style="font-size:13px;font-weight:600">Itineraries built</div>
+              <div style="font-size:11px;color:#57534e;margin-top:1px">{{ trendSub }}</div>
+            </div>
+            <div style="text-align:right"><div style="font-size:22px;font-weight:600;line-height:1">{{ trendTotal }}</div><div style="{{ trendDeltaStyle }}">{{ trendDeltaText }}</div></div>
+          </div>
+          <div style="position:relative;height:152px;display:flex;align-items:flex-end;gap:6px;border-bottom:0.5px solid #e7e5e4">
+            <sc-for list="{{ trendBars }}" as="b" hint-placeholder-count="12">
+              <div style="{{ b.colStyle }}" onMouseEnter="{{ b.onEnter }}" onMouseLeave="{{ b.onLeave }}"><div style="{{ b.fillStyle }}"></div></div>
+            </sc-for>
+            <sc-if value="{{ tipShow }}" hint-placeholder-val="{{ false }}"><div style="{{ tipStyle }}"><strong style="font-weight:600">{{ tipValue }}</strong> · {{ tipLabel }}</div></sc-if>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <sc-for list="{{ trendBars }}" as="b" hint-placeholder-count="12"><div style="flex:1;text-align:center;font-size:9px;color:#a8a29e">{{ b.label }}</div></sc-for>
+          </div>
+        </div>
+
+        <div style="grid-column:span 4;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Build activity by state</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:14px">{{ periodLabelCap }} · itineraries created</div>
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <sc-for list="{{ stateBars }}" as="s" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:9px">
+                <div style="{{ s.labelStyle }}">{{ s.abbr }}</div>
+                <div style="flex:1;height:8px;background:#f5f5f4;border-radius:4px;overflow:hidden"><div style="{{ s.fillStyle }}"></div></div>
+                <div style="font-size:11px;color:#1c1917;font-weight:600;min-width:24px;text-align:right">{{ s.count }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="grid-column:span 4;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Top destinations</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:14px">By tours they appear in</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ topDest }}" as="d" hint-placeholder-count="8">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <div style="font-size:12px;color:#1c1917;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.name }}</div>
+                  <div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><div style="{{ d.badgeStyle }}">{{ d.badge }}</div><div style="font-size:11px;font-weight:600;min-width:20px;text-align:right">{{ d.count }}</div></div>
+                </div>
+                <div style="height:6px;background:#f5f5f4;border-radius:3px;overflow:hidden"><div style="{{ d.fillStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="grid-column:span 4;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Theme mix</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:14px">Share of tagged product demand</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="position:relative;width:128px;height:128px;flex-shrink:0">
+              <div style="{{ donutStyle }}"></div>
+              <div style="position:absolute;inset:26px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center"><div style="font-size:18px;font-weight:600;line-height:1">{{ themeTopPct }}</div><div style="font-size:9px;color:#a8a29e;text-transform:uppercase;letter-spacing:.03em;margin-top:2px;max-width:64px">{{ themeTopName }}</div></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0">
+              <sc-for list="{{ themeLegend }}" as="t" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:7px"><div style="{{ t.dotStyle }}"></div><div style="font-size:11px;color:#57534e;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</div><div style="font-size:11px;color:#1c1917;font-weight:600">{{ t.pct }}</div></div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="grid-column:span 4;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Board vs operators</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:14px">Where coverage diverges</div>
+          <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;margin-bottom:14px">
+            <div style="{{ gap.segBoardStyle }}"></div><div style="{{ gap.segBothStyle }}"></div><div style="{{ gap.segOpStyle }}"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:2px;background:#EF9F27;flex-shrink:0"></div><div style="font-size:12px;color:#57534e;flex:1">Board only — not yet sold</div><div style="font-size:12px;font-weight:600">{{ gap.boardOnly }}</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:2px;background:#378ADD;flex-shrink:0"></div><div style="font-size:12px;color:#57534e;flex:1">In both</div><div style="font-size:12px;font-weight:600">{{ gap.both }}</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:2px;background:#1D9E75;flex-shrink:0"></div><div style="font-size:12px;color:#57534e;flex:1">Operators only — off-board</div><div style="font-size:12px;font-weight:600">{{ gap.operatorOnly }}</div></div>
+          </div>
+          <div style="margin-top:14px;background:#FAEEDA;border:0.5px solid #FAC775;border-radius:8px;padding:9px 11px;font-size:11px;color:#633806;line-height:1.5">{{ gap.headline }}</div>
+        </div>
+
+        <div style="grid-column:span 8;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Pipeline health</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:16px">From scraped source to verified product</div>
+          <div style="display:flex;align-items:stretch;gap:0">
+            <sc-for list="{{ pipeline }}" as="p" hint-placeholder-count="6">
+              <div style="flex:1;display:flex;align-items:center;gap:0">
+                <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:0 2px">
+                  <div style="height:4px;border-radius:2px;background:{{ p.color }}"></div>
+                  <div style="font-size:20px;font-weight:600;line-height:1;letter-spacing:-.01em">{{ p.count }}</div>
+                  <div style="font-size:10.5px;color:#57534e;line-height:1.25">{{ p.label }}</div>
+                </div>
+                <sc-if value="{{ p.arrow }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d6d3d1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin:0 2px"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:16px;display:flex;align-items:center;gap:8px;font-size:11px;color:#57534e"><div style="width:9px;height:9px;border-radius:99px;background:#639922;box-shadow:0 0 0 3px #EAF3DE;flex-shrink:0"></div>{{ pipelineNote }}</div>
+        </div>
+
+        <div style="grid-column:span 4;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between"><div><div style="font-size:13px;font-weight:600">Review queue</div><div style="font-size:11px;color:#57534e;margin-top:1px">Tokens awaiting a decision</div></div><div style="font-size:22px;font-weight:600;color:#B0431F;line-height:1">{{ reviewTotal }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;flex:1">
+            <sc-for list="{{ review }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;color:#57534e">{{ r.label }}</div><div style="font-size:11px;font-weight:600">{{ r.count }}</div></div>
+                <div style="height:6px;background:#f5f5f4;border-radius:3px;overflow:hidden"><div style="{{ r.fillStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <a href="Token Editor.dc.html" style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:8px;font-size:12px;font-weight:600;background:#EAF3DE;color:#27500A;border:0.5px solid #C0DD97;text-decoration:none">Open token editor <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></a>
+        </div>
+
+        <div style="grid-column:span 12;background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:16px;display:flex;flex-direction:column">
+          <div style="font-size:13px;font-weight:600">Most-used templates</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px;margin-bottom:14px">Scraped itineraries most often loaded as a starting point</div>
+          <div style="display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,0.7fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,1.4fr);gap:10px;padding:0 4px 8px;border-bottom:0.5px solid #e7e5e4;font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em">
+            <div>Template</div><div>State</div><div>Type</div><div style="text-align:right">Days</div><div style="text-align:right">Products</div><div>Times loaded</div>
+          </div>
+          <sc-for list="{{ templates }}" as="t" hint-placeholder-count="6">
+            <div style="{{ t.rowStyle }}">
+              <div style="min-width:0"><div style="font-size:12.5px;font-weight:600;color:#1c1917;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</div><div style="font-size:10.5px;color:#a8a29e">{{ t.source }}</div></div>
+              <div style="font-size:12px;color:#57534e;align-self:center">{{ t.state }}</div>
+              <div style="align-self:center"><div style="{{ t.typeStyle }}">{{ t.type }}</div></div>
+              <div style="font-size:12px;color:#57534e;text-align:right;align-self:center">{{ t.days }}</div>
+              <div style="font-size:12px;color:#57534e;text-align:right;align-self:center">{{ t.prods }}</div>
+              <div style="display:flex;align-items:center;gap:8px;align-self:center"><div style="flex:1;height:6px;background:#f5f5f4;border-radius:3px;overflow:hidden"><div style="{{ t.popStyle }}"></div></div><div style="font-size:11px;font-weight:600;min-width:22px;text-align:right">{{ t.pop }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1340},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#639922&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;defaultPeriod&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;4W&quot;,&quot;12W&quot;,&quot;12M&quot;],&quot;default&quot;:&quot;12W&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;defaultState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;all&quot;,&quot;WA&quot;,&quot;NT&quot;,&quot;QLD&quot;,&quot;TAS&quot;,&quot;VIC&quot;],&quot;default&quot;:&quot;all&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showDeltas&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  themeColor = {
+    'Nature & Scenery':'#639922','Beach & Coast':'#378ADD','City & Shopping':'#9C8A7A',
+    'Culture & History':'#6E4FB0','Scenic Drives':'#EF9F27','Hiking & Walks':'#3FA8A0',
+    'Wildlife':'#1D9E75','Food & Wine':'#B0431F'
+  };
+
+  states = {
+    WA:{name:'Western Australia',abbr:'WA',tours:198,products:96,dayRows:1810,built:62,coverage:78,sources:4,rawTokens:268,verified:89,
+      gap:{boardOnly:13,both:71,operatorOnly:12}, review:{rename:3,dupe:2,split:1,nonplace:1},
+      prods:[['Cable Beach',38,1,1,['Beach & Coast','Nature & Scenery']],['Broome',35,1,1,['City & Shopping','Culture & History']],['Bungle Bungles',28,1,1,['Nature & Scenery','Hiking & Walks']],['Gibb River Road',26,1,1,['Scenic Drives','Nature & Scenery']],['Lake Argyle',22,1,1,['Nature & Scenery','Wildlife']],['Kununurra',20,1,1,['Nature & Scenery','Scenic Drives']],['El Questro',18,0,1,['Nature & Scenery','Hiking & Walks']],['Bell Gorge',16,1,1,['Hiking & Walks','Nature & Scenery']],['Monkey Mia',6,1,0,['Wildlife','Beach & Coast']],['Kalbarri NP',5,1,0,['Nature & Scenery','Hiking & Walks']]]},
+    NT:{name:'Northern Territory',abbr:'NT',tours:142,products:78,dayRows:1295,built:44,coverage:72,sources:3,rawTokens:212,verified:73,
+      gap:{boardOnly:11,both:56,operatorOnly:11}, review:{rename:2,dupe:1,split:1,nonplace:0},
+      prods:[['Uluru',40,1,1,['Nature & Scenery','Culture & History']],['Kata Tjuta',32,1,1,['Nature & Scenery','Hiking & Walks']],['Kakadu NP',30,1,1,['Nature & Scenery','Wildlife']],['Kings Canyon',28,1,1,['Nature & Scenery','Hiking & Walks']],['Alice Springs',25,1,1,['City & Shopping','Culture & History']],['Katherine Gorge',22,1,1,['Nature & Scenery','Scenic Drives']],['Darwin',20,1,1,['City & Shopping','Food & Wine']],['Litchfield NP',18,0,1,['Nature & Scenery','Hiking & Walks']],['Devils Marbles',6,1,0,['Nature & Scenery']],['Tiwi Islands',4,1,0,['Culture & History','Wildlife']]]},
+    QLD:{name:'Queensland',abbr:'QLD',tours:224,products:102,dayRows:2050,built:71,coverage:81,sources:4,rawTokens:295,verified:96,
+      gap:{boardOnly:12,both:78,operatorOnly:12}, review:{rename:3,dupe:2,split:0,nonplace:1},
+      prods:[['Great Barrier Reef',45,1,1,['Nature & Scenery','Wildlife']],['Whitsundays',38,1,1,['Beach & Coast','Nature & Scenery']],['Cairns',35,1,1,['City & Shopping','Food & Wine']],['Daintree Rainforest',30,1,1,['Nature & Scenery','Wildlife']],['Port Douglas',28,1,1,['Beach & Coast','Food & Wine']],['Fraser Island',26,1,1,['Nature & Scenery','Beach & Coast']],['Cape Tribulation',24,1,1,['Beach & Coast','Nature & Scenery']],['Brisbane',20,1,1,['City & Shopping','Culture & History']],['Lady Elliot Island',6,1,0,['Wildlife','Beach & Coast']],['Carnarvon Gorge',5,1,0,['Hiking & Walks','Nature & Scenery']]]},
+    TAS:{name:'Tasmania',abbr:'TAS',tours:118,products:64,dayRows:1080,built:29,coverage:69,sources:3,rawTokens:178,verified:60,
+      gap:{boardOnly:9,both:47,operatorOnly:8}, review:{rename:1,dupe:1,split:1,nonplace:0},
+      prods:[['Cradle Mountain',35,1,1,['Nature & Scenery','Hiking & Walks']],['Wineglass Bay',30,1,1,['Beach & Coast','Hiking & Walks']],['Port Arthur',28,1,1,['Culture & History']],['Freycinet NP',26,1,1,['Nature & Scenery','Beach & Coast']],['Hobart',25,1,1,['City & Shopping','Food & Wine']],['MONA',24,1,1,['Culture & History','City & Shopping']],['Salamanca Market',20,1,1,['Food & Wine','City & Shopping']],['Bay of Fires',16,0,1,['Beach & Coast','Nature & Scenery']],['Tarkine',5,1,0,['Nature & Scenery','Hiking & Walks']],['Maria Island',4,1,0,['Wildlife','Nature & Scenery']]]},
+    VIC:{name:'Victoria',abbr:'VIC',tours:153,products:72,dayRows:1400,built:42,coverage:74,sources:3,rawTokens:227,verified:67,
+      gap:{boardOnly:10,both:52,operatorOnly:10}, review:{rename:2,dupe:2,split:1,nonplace:2},
+      prods:[['Great Ocean Road',42,1,1,['Scenic Drives','Nature & Scenery']],['Melbourne',40,1,1,['City & Shopping','Food & Wine']],['Twelve Apostles',38,1,1,['Nature & Scenery','Beach & Coast']],['Yarra Valley',30,1,1,['Food & Wine']],['Phillip Island',28,1,1,['Wildlife','Beach & Coast']],['Grampians',26,1,1,['Nature & Scenery','Hiking & Walks']],['Mornington Peninsula',22,1,1,['Food & Wine','Beach & Coast']],['Wilsons Promontory',18,0,1,['Hiking & Walks','Nature & Scenery']],['Gippsland Lakes',6,1,0,['Nature & Scenery','Beach & Coast']],['Mount Buffalo',5,1,0,['Nature & Scenery','Hiking & Walks']]]}
+  };
+
+  templatesData = [
+    {name:'Tropical North & Reef',state:'QLD',type:'Competitor',source:'globaljourneys.com',pop:45,days:7,prods:11},
+    {name:'Great Ocean Road & Beyond',state:'VIC',type:'Competitor',source:'globaljourneys.com',pop:42,days:5,prods:8},
+    {name:'Red Centre & Top End',state:'NT',type:'Competitor',source:'globaljourneys.com',pop:40,days:6,prods:9},
+    {name:'3-Day Melbourne & Great Ocean Road',state:'VIC',type:'Competitor',source:'insideaustralia.com',pop:40,days:3,prods:5},
+    {name:'Kimberley Wilderness & Coast',state:'WA',type:'Competitor',source:'globaljourneys.com',pop:38,days:7,prods:13},
+    {name:'Reef & Rainforest',state:'QLD',type:'Board',source:'tourism.qld.gov.au',pop:38,days:5,prods:8},
+    {name:'Wild Tasmania',state:'TAS',type:'Competitor',source:'globaljourneys.com',pop:35,days:5,prods:8},
+    {name:'Uluru Short Break',state:'NT',type:'Competitor',source:'insideaustralia.com',pop:32,days:3,prods:5},
+    {name:'Kakadu & Top End',state:'NT',type:'Board',source:'tourism.nt.gov.au',pop:30,days:4,prods:6},
+    {name:'East Coast Explorer',state:'TAS',type:'Competitor',source:'insideaustralia.com',pop:30,days:4,prods:7},
+    {name:'Whitsundays Sailing',state:'QLD',type:'Competitor',source:'outbackspirit.com.au',pop:30,days:3,prods:4},
+    {name:'Melbourne & Surrounds',state:'VIC',type:'Board',source:'visitvictoria.com',pop:30,days:4,prods:5},
+    {name:'Cradle Mountain & West',state:'TAS',type:'Board',source:'tourism.tas.gov.au',pop:26,days:3,prods:4},
+    {name:'Coral Coast & Outback',state:'WA',type:'Board',source:'tourism.wa.gov.au',pop:24,days:4,prods:6},
+    {name:'Bungle Bungles Adventure',state:'WA',type:'Competitor',source:'outbackspirit.com.au',pop:28,days:3,prods:5}
+  ];
+
+  weekPattern = [0.78,0.85,0.80,0.92,0.88,0.97,0.90,1.05,1.00,1.12,1.08,1.25];
+  monthPattern = [0.70,0.80,0.95,1.10,1.25,1.30,1.15,1.00,1.05,0.90,0.85,0.80];
+  labels = {
+    '4W':['Wk 1','Wk 2','Wk 3','Wk 4'],
+    '12W':['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12'],
+    '12M':['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun']
+  };
+  periodSub = {'4W':'last 4 weeks','12W':'last 12 weeks','12M':'last 12 months'};
+  deltaPct = {'4W':8,'12W':12,'12M':21};
+
+  state = {
+    stateKey:(this.props&&this.props.defaultState)||'all',
+    period:(this.props&&this.props.defaultPeriod)||'12W',
+    hoverIdx:null
+  };
+
+  onState = (e)=>this.setState({stateKey:e.target.value, hoverIdx:null});
+  setPeriod = (p)=>this.setState({period:p, hoverIdx:null});
+  enter = (i)=>this.setState({hoverIdx:i});
+  leave = ()=>this.setState({hoverIdx:null});
+
+  fmt(n){ return n.toLocaleString('en-US'); }
+  filteredKeys(){ const k=this.state.stateKey; return k==='all'?Object.keys(this.states):[k]; }
+  sum(fn){ return this.filteredKeys().reduce((s,k)=>s+fn(this.states[k]),0); }
+
+  series(period, builtTotal){
+    const pat = period==='12M'?this.monthPattern:this.weekPattern;
+    const total = period==='12M'?Math.round(builtTotal*4.3):builtTotal;
+    const ps = pat.reduce((a,b)=>a+b,0);
+    let vals = pat.map(p=>Math.round(total*p/ps));
+    if (period==='4W') vals = vals.slice(-4);
+    return vals;
+  }
+
+  renderVals(){
+    const accent = (this.props&&this.props.accent)||'#639922';
+    const showDeltas = (this.props&&this.props.showDeltas)!==false;
+    const period = this.state.period;
+    const keys = this.filteredKeys();
+    const isAll = this.state.stateKey==='all';
+
+    const tours = this.sum(s=>s.tours);
+    const products = this.sum(s=>s.products);
+    const builtTotal = this.sum(s=>s.built);
+    const verified = this.sum(s=>s.verified);
+    const quality = Math.round(verified/products*100);
+    const coverage = Math.round(this.filteredKeys().reduce((a,k)=>a+this.states[k].coverage,0)/keys.length);
+    const reviewTotal = this.sum(s=>s.review.rename+s.review.dupe+s.review.split+s.review.nonplace);
+
+    const stateLabel = isAll?'all states':this.states[this.state.stateKey].name;
+    const pCap = this.periodSub[period];
+
+    // --- trend ---
+    let vals = this.series(period, builtTotal);
+    const labels = this.labels[period];
+    const maxV = Math.max(1,...vals);
+    const hi = this.state.hoverIdx;
+    const trendBars = vals.map((v,i)=>{
+      const isHover = hi===i;
+      return {
+        label: labels[i],
+        colStyle:{flex:1,display:'flex',flexDirection:'column',justifyContent:'flex-end',alignItems:'stretch',cursor:'pointer',height:'100%',paddingTop:'2px'},
+        fillStyle:{width:'100%',background:isHover?'#4d7619':accent,borderRadius:'3px 3px 0 0',height:Math.max(2,Math.round(v/maxV*100))+'%',transition:'height .3s,background .12s',opacity:(hi===null||isHover)?1:0.62},
+        onEnter:()=>this.enter(i), onLeave:this.leave
+      };
+    });
+    const trendDeltaPct = this.deltaPct[period];
+    const tipShow = hi!==null;
+    const tipStyle = {position:'absolute',top:'2px',left:((hi+0.5)/vals.length*100)+'%',transform:'translateX(-50%)',background:'#1c1917',color:'#fff',padding:'4px 9px',borderRadius:'6px',fontSize:'11px',whiteSpace:'nowrap',pointerEvents:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18)'};
+
+    // --- by state ---
+    const allBuilt = Object.keys(this.states).map(k=>this.states[k].built);
+    const maxBuilt = Math.max(...allBuilt);
+    const stateBars = Object.keys(this.states).map(k=>{
+      const s=this.states[k];
+      const active = isAll || this.state.stateKey===k;
+      return { abbr:s.abbr, count:s.built,
+        labelStyle:{fontSize:'11px',fontWeight:600,color:active?'#1c1917':'#a8a29e',minWidth:'30px'},
+        fillStyle:{height:'100%',borderRadius:'4px',background:active?accent:'#d6d3d1',width:Math.round(s.built/maxBuilt*100)+'%',transition:'width .3s'} };
+    });
+
+    // --- products aggregate ---
+    const agg = {};
+    keys.forEach(k=>this.states[k].prods.forEach(([n,pop,b,o,th])=>{
+      if(!agg[n]) agg[n]={name:n,pop:0,board:!!b,op:!!o,th};
+      agg[n].pop+=pop;
+    }));
+    const prodList = Object.values(agg);
+
+    // top destinations
+    const sortedProd = prodList.slice().sort((a,b)=>b.pop-a.pop);
+    const maxPop = sortedProd.length?sortedProd[0].pop:1;
+    const destBadge = (p)=> p.board&&p.op?['Both','#E6F1FB','#0C447C','#B5D4F4','#378ADD'] : (p.board?['Board only','#FAEEDA','#633806','#FAC775','#EF9F27']:['Operators','#E7F5EF','#0F6B4B','#B9E3D2','#1D9E75']);
+    const topDest = sortedProd.slice(0,8).map(p=>{
+      const [bl,bg,col,bd,fill]=destBadge(p);
+      return { name:p.name, count:p.pop,
+        badge:bl, badgeStyle:{display:'inline-flex',alignItems:'center',padding:'1px 7px',borderRadius:'99px',fontSize:'10px',fontWeight:600,whiteSpace:'nowrap',background:bg,color:col,border:'0.5px solid '+bd},
+        fillStyle:{height:'100%',borderRadius:'3px',background:fill,width:Math.round(p.pop/maxPop*100)+'%',transition:'width .3s'} };
+    });
+
+    // theme mix
+    const themeSum = {};
+    prodList.forEach(p=>p.th.forEach(t=>{ themeSum[t]=(themeSum[t]||0)+p.pop; }));
+    const totalTheme = Object.values(themeSum).reduce((a,b)=>a+b,0)||1;
+    const themeSorted = Object.keys(themeSum).map(t=>({name:t,sum:themeSum[t],pct:themeSum[t]/totalTheme})).sort((a,b)=>b.sum-a.sum);
+    let acc=0; const segs=[];
+    themeSorted.forEach(t=>{ const start=acc*100, end=(acc+t.pct)*100; segs.push(this.themeColor[t.name]+' '+start.toFixed(1)+'% '+end.toFixed(1)+'%'); acc+=t.pct; });
+    const donutStyle = {position:'absolute',inset:0,borderRadius:'50%',background:'conic-gradient('+segs.join(',')+')'};
+    const themeLegend = themeSorted.slice(0,6).map(t=>({ name:t.name, pct:Math.round(t.pct*100)+'%',
+      dotStyle:{width:'10px',height:'10px',borderRadius:'3px',background:this.themeColor[t.name],flexShrink:0} }));
+    const themeTopName = themeSorted[0]?themeSorted[0].name:'';
+    const themeTopPct = themeSorted[0]?Math.round(themeSorted[0].pct*100)+'%':'';
+
+    // gap
+    const boardOnly=this.sum(s=>s.gap.boardOnly), both=this.sum(s=>s.gap.both), operatorOnly=this.sum(s=>s.gap.operatorOnly);
+    const gapTot = boardOnly+both+operatorOnly;
+    const gap = {
+      boardOnly, both, operatorOnly,
+      segBoardStyle:{width:(boardOnly/gapTot*100)+'%',background:'#EF9F27'},
+      segBothStyle:{width:(both/gapTot*100)+'%',background:'#378ADD'},
+      segOpStyle:{width:(operatorOnly/gapTot*100)+'%',background:'#1D9E75'},
+      headline:boardOnly+' board-recommended place'+(boardOnly===1?'':'s')+' across '+(isAll?'the portfolio':this.states[this.state.stateKey].abbr)+' are not yet sold by any operator — a content gap worth closing.'
+    };
+
+    // pipeline
+    const sources = isAll?16:this.sum(s=>s.sources);
+    const rawTokens = this.sum(s=>s.rawTokens);
+    const pipeRaw = [['Sources',sources,'#9C8A7A'],['Tours',tours,'#6E4FB0'],['Day rows',this.sum(s=>s.dayRows),'#378ADD'],['Raw tokens',rawTokens,'#EF9F27'],['Products',products,'#3FA8A0'],['Verified',verified,'#639922']];
+    const pipeline = pipeRaw.map((p,i)=>({ label:p[0], count:this.fmt(p[1]), color:p[2], arrow:i<pipeRaw.length-1 }));
+    const pipelineNote = Math.round(verified/products*100)+'% of distinct products are verified · '+reviewTotal+' tokens still need a decision';
+
+    // review queue
+    const rv = {rename:this.sum(s=>s.review.rename),dupe:this.sum(s=>s.review.dupe),split:this.sum(s=>s.review.split),nonplace:this.sum(s=>s.review.nonplace)};
+    const rvDefs = [['Needs rename',rv.rename,'#EF9F27'],['Possible duplicate',rv.dupe,'#378ADD'],['Should split',rv.split,'#6E4FB0'],['Not a place',rv.nonplace,'#B0431F']];
+    const rvMax = Math.max(1,...rvDefs.map(d=>d[1]));
+    const review = rvDefs.map(d=>({ label:d[0], count:d[1], fillStyle:{height:'100%',borderRadius:'3px',background:d[2],width:Math.round(d[1]/rvMax*100)+'%'} }));
+
+    // templates
+    const tFiltered = this.templatesData.filter(t=>isAll||t.state===this.state.stateKey).sort((a,b)=>b.pop-a.pop).slice(0,6);
+    const maxTPop = Math.max(1,...tFiltered.map(t=>t.pop));
+    const templates = tFiltered.map((t,i)=>({
+      name:t.name, source:t.source, state:t.state, type:t.type, days:t.days, prods:t.prods, pop:t.pop,
+      rowStyle:{display:'grid',gridTemplateColumns:'minmax(0,2.4fr) minmax(0,0.7fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,0.8fr) minmax(0,1.4fr)',gap:'10px',padding:'10px 4px',borderBottom:i<tFiltered.length-1?'0.5px solid #f0efed':'none',alignItems:'center'},
+      typeStyle:{display:'inline-flex',padding:'1px 8px',borderRadius:'99px',fontSize:'10px',fontWeight:600,whiteSpace:'nowrap',background:t.type==='Board'?'#FAEEDA':'#E6F1FB',color:t.type==='Board'?'#633806':'#0C447C',border:'0.5px solid '+(t.type==='Board'?'#FAC775':'#B5D4F4')},
+      popStyle:{height:'100%',borderRadius:'3px',background:t.type==='Board'?'#EF9F27':'#378ADD',width:Math.round(t.pop/maxTPop*100)+'%'}
+    }));
+
+    // kpis
+    const dStyle = (pos)=>({display:'inline-flex',alignItems:'center',gap:'2px',fontSize:'11px',fontWeight:600,padding:'1px 6px',borderRadius:'99px',background:pos?'#EAF3DE':'#FBE9E7',color:pos?'#27500A':'#8C2F1E',visibility:showDeltas?'visible':'hidden'});
+    const kpis = [
+      {eyebrow:'Tours analysed', value:this.fmt(tours), sub:'across '+stateLabel, deltaText:'+'+Math.round(tours*0.04), deltaStyle:dStyle(true)},
+      {eyebrow:'Distinct products', value:this.fmt(products), sub:'destinations & activities', deltaText:'+'+Math.round(products*0.028), deltaStyle:dStyle(true)},
+      {eyebrow:'Itineraries built', value:this.fmt(builtTotal), sub:pCap, deltaText:'+'+trendDeltaPct+'%', deltaStyle:dStyle(true)},
+      {eyebrow:'Board coverage', value:coverage+'%', sub:'of recommended places sold', deltaText:'+2 pts', deltaStyle:dStyle(true)},
+      {eyebrow:'Data quality', value:quality+'%', sub:reviewTotal+' tokens to review', deltaText:'+1 pt', deltaStyle:dStyle(true)}
+    ];
+
+    return {
+      stateKey:this.state.stateKey,
+      stateOptions:[{key:'all',name:'All states'}].concat(Object.keys(this.states).map(k=>({key:k,name:this.states[k].name}))),
+      onState:this.onState,
+      periodTabs:['4W','12W','12M'].map(p=>({ label:p, onClick:()=>this.setPeriod(p),
+        style:{padding:'6px 12px',fontSize:'11px',fontWeight:600,cursor:'pointer',background:period===p?'#EAF3DE':'#fff',color:period===p?'#27500A':'#57534e',borderRight:p!=='12M'?'0.5px solid #d6d3d1':'none'} })),
+      headerSub:'Tagged-data analytics · '+stateLabel+' · '+pCap,
+      kpis,
+      trendBars, trendTotal:this.fmt(builtTotal),
+      trendSub:'New itineraries created · '+pCap,
+      trendDeltaText:'+'+trendDeltaPct+'% vs prior period',
+      trendDeltaStyle:{display:'inline-flex',alignItems:'center',gap:'2px',fontSize:'11px',fontWeight:600,color:'#27500A'},
+      tipShow, tipStyle, tipValue: hi!==null?vals[hi]:'', tipLabel: hi!==null?labels[hi]:'',
+      periodLabelCap:pCap, periodLabel:pCap,
+      stateBars, topDest, themeLegend, donutStyle, themeTopName, themeTopPct,
+      gap, pipeline, pipelineNote, review, reviewTotal, templates
+    };
+  }
+}
+</script>
+</body>
+</html>

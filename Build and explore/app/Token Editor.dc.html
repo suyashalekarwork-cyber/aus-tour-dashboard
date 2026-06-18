@@ -1,0 +1,642 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./vendor/react.production.min.js"></script>
+<script src="./vendor/react-dom.production.min.js"></script>
+<script src="./vendor/babel.min.js"></script>
+<script src="./support.js"></script>
+<script src="./tokens.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f0efed}
+input{font-family:inherit}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="font-family:'Helvetica Neue',Helvetica,'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;color:#1c1917;min-height:100vh;padding:24px;display:flex;justify-content:center">
+<div style="display:flex;width:100%;max-width:1280px;border:0.5px solid #e7e5e4;border-radius:10px;overflow:clip;background:#fafaf9;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+
+  <div style="width:206px;min-width:206px;background:#fff;border-right:0.5px solid #e7e5e4;padding:14px 14px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg> Data quality</div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0;width:100%">
+    <div>
+      <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Pipeline</div>
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div style="display:flex;gap:9px;align-items:center"><div style="width:9px;height:9px;border-radius:99px;background:#d6d3d1;flex-shrink:0"></div><div style="font-size:12px;color:#57534e">16 sources scraped</div></div>
+        <div style="margin-left:4px;width:1px;height:14px;background:#e7e5e4"></div>
+        <div style="display:flex;gap:9px;align-items:center"><div style="width:9px;height:9px;border-radius:99px;background:#d6d3d1;flex-shrink:0"></div><div style="font-size:12px;color:#57534e">Tagged into tokens</div></div>
+        <div style="margin-left:4px;width:1px;height:14px;background:#97C459"></div>
+        <div style="display:flex;gap:9px;align-items:center"><div style="width:11px;height:11px;border-radius:99px;background:#639922;flex-shrink:0;box-shadow:0 0 0 3px #EAF3DE"></div><div style="font-size:12px;color:#27500A;font-weight:600">Token cleanup</div></div>
+        <div style="margin-left:5px;width:1px;height:14px;background:#e7e5e4"></div>
+        <div style="display:flex;gap:9px;align-items:center"><div style="width:9px;height:9px;border-radius:99px;background:#d6d3d1;flex-shrink:0"></div><div style="font-size:12px;color:#57534e">Itinerary builder</div></div>
+      </div>
+    </div>
+    <div style="background:#f5f5f4;border-radius:8px;padding:10px 11px;font-size:11px;color:#57534e;line-height:1.55"><strong style="color:#1c1917;font-weight:600">Two-way sync.</strong> Fixes here rewrite the <span style="color:#0C447C;font-weight:600">products</span> table and affected <span style="color:#0C447C;font-weight:600">day_rows</span>, so every itinerary built afterwards uses the clean data.</div>
+    <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0;width:100%">
+    <div style="padding:2px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Distinct tokens</div><div style="font-size:18px;font-weight:600">{{ totalTokens }}</div></div>
+    <div style="padding:2px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Need review</div><div style="font-size:18px;font-weight:600;color:#B0431F">{{ needsReview }}</div></div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+    <div style="background:#fff;border-bottom:0.5px solid #e7e5e4;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:16px;font-weight:600">Product token editor</div>
+        <div style="font-size:11px;color:#57534e;margin-top:1px">Review and correct extracted place names before they feed the builder</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#57534e;background:#f5f5f4;border:0.5px solid #e7e5e4;font-size:13px;font-weight:600" onClick="{{ openHelp }}" title="How to use">?</div>
+        <div style="font-size:11px;color:#57534e;background:#f5f5f4;border:0.5px solid #e7e5e4;border-radius:99px;padding:4px 11px"><strong style="color:#1c1917;font-weight:600">{{ cleanCount }}</strong> clean</div>
+        <div style="font-size:11px;color:#B0431F;background:#FBE9E7;border:0.5px solid #F3B5A7;border-radius:99px;padding:4px 11px"><strong style="font-weight:700">{{ needsReview }}</strong> flagged</div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-bottom:0.5px solid #e7e5e4;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;border:0.5px solid #d6d3d1;border-radius:6px;padding:5px 9px;background:#fff;flex:1;min-width:180px;max-width:300px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Search tokens…" style="border:none;outline:none;font-size:12px;color:#1c1917;background:transparent;width:100%" />
+      </div>
+      <select value="{{ filterState }}" onChange="{{ onFilterState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 9px;font-size:12px;color:#1c1917;background:#fff;cursor:pointer">
+        <sc-for list="{{ stateOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
+      </select>
+      <select value="{{ filterStatus }}" onChange="{{ onFilterStatus }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 9px;font-size:12px;color:#1c1917;background:#fff;cursor:pointer">
+        <sc-for list="{{ statusOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
+      </select>
+      <div style="font-size:11px;color:#a8a29e;margin-left:auto">{{ rowCount }}</div>
+    </div>
+
+    <div style="background:#fff;border-bottom:0.5px solid #e7e5e4;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:12px;color:#57534e"><strong style="color:#1c1917;font-weight:600">{{ pendingCount }}</strong> pending {{ pendingWord }} · ~<strong style="color:#1c1917;font-weight:600">{{ affectedRows }}</strong> day rows affected</div>
+      <div style="display:flex;align-items:center;gap:5px;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;background:{{ applyBtnBg }};color:{{ applyBtnColor }};border:0.5px solid {{ applyBtnBorder }};cursor:{{ applyCursor }}" onClick="{{ openApply }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.4 2.6L21 8"/><path d="M21 3v5h-5"/></svg> Preview &amp; sync to database</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:0;align-items:start;flex:1;min-height:0">
+
+      <div style="overflow-x:auto">
+        <div style="display:table;width:100%;border-collapse:collapse;font-size:12px">
+          <div style="display:table-header-group">
+            <div style="display:table-row;background:#fafaf9;text-align:left;position:sticky;top:0;z-index:1">
+              <div style="display:table-cell;padding:9px 16px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4">Token</div>
+              <div style="display:table-cell;padding:9px 8px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4">Flag</div>
+              <div style="display:table-cell;padding:9px 8px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4">State</div>
+              <div style="display:table-cell;padding:9px 8px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4;text-align:right">Day rows</div>
+              <div style="display:table-cell;padding:9px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4">Source</div>
+              <div style="display:table-cell;padding:9px 12px;font-size:10px;color:#57534e;text-transform:uppercase;letter-spacing:.04em;font-weight:600;border-bottom:0.5px solid #e7e5e4">Status</div>
+            </div>
+          </div>
+          <div style="display:table-row-group">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="14">
+              <div style="{{ r.rowStyle }}" onClick="{{ r.onSelect }}">
+                <div style="display:table-cell;padding:9px 16px;border-bottom:0.5px solid #f0efed;font-weight:600;color:#1c1917">{{ r.name }}</div>
+                <div style="display:table-cell;padding:9px 8px;border-bottom:0.5px solid #f0efed"><span style="{{ r.flagStyle }}">{{ r.flagLabel }}</span></div>
+                <div style="display:table-cell;padding:9px 8px;border-bottom:0.5px solid #f0efed;color:#57534e">{{ r.state }}</div>
+                <div style="display:table-cell;padding:9px 8px;border-bottom:0.5px solid #f0efed;color:#57534e;text-align:right">{{ r.count }}</div>
+                <div style="display:table-cell;padding:9px 12px;border-bottom:0.5px solid #f0efed;color:#57534e">{{ r.source }}</div>
+                <div style="display:table-cell;padding:9px 12px;border-bottom:0.5px solid #f0efed"><span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-left:0.5px solid #e7e5e4;background:#fff;position:sticky;top:0;align-self:start;max-height:100vh;overflow-y:auto">
+        <sc-if value="{{ selPresent }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px;display:flex;flex-direction:column;gap:13px">
+            <div>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                <div style="font-size:17px;font-weight:600;line-height:1.25">{{ sel.name }}</div>
+                <span style="{{ sel.statusStyle }}">{{ sel.statusLabel }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:7px"><span style="{{ sel.flagStyle }}">{{ sel.flagLabel }}</span><span style="font-size:11px;color:#57534e">{{ sel.state }} · {{ sel.source }} · {{ sel.count }} day rows</span></div>
+              <div style="font-size:12px;color:#57534e;line-height:1.5;margin-top:8px;background:#f5f5f4;border-radius:7px;padding:9px 11px">{{ sel.issueDesc }}</div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Where it was extracted</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ sel.contexts }}" as="ctx" hint-placeholder-count="2">
+                  <div style="font-size:12px;color:#44403c;line-height:1.5;border-left:2px solid #e7e5e4;padding:2px 0 2px 9px">{{ ctx }}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                <a href="{{ sel.verifyMapUrl }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#185FA5;text-decoration:none;background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:5px;padding:4px 9px;font-weight:600">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                  Maps
+                </a>
+                <a href="{{ sel.verifySearchUrl }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#185FA5;text-decoration:none;background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:5px;padding:4px 9px;font-weight:600">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                  Search
+                </a>
+                <a href="{{ sel.verifyWikiUrl }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#185FA5;text-decoration:none;background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:5px;padding:4px 9px;font-weight:600">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                  Wikipedia
+                </a>
+              </div>
+            </div>
+
+            <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:0">
+
+            <sc-if value="{{ sel.pendingFix }}" hint-placeholder-val="{{ true }}">
+              <div>
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Recommended fix</div>
+              <div style="{{ rec.style }}" onClick="{{ applyRec }}"><sc-if value="{{ rec.isRemove }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></sc-if><sc-if value="{{ rec.isFix }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></sc-if> {{ rec.label }}</div>
+              <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#a8a29e">
+                <span>Not right?</span>
+                <span style="color:#185FA5;font-weight:600;cursor:pointer" onClick="{{ toggleAdvanced }}">{{ advancedLabel }}</span><span>·</span>
+                <span style="color:#27500A;font-weight:600;cursor:pointer" onClick="{{ doApprove }}">Keep as-is</span><span>·</span>
+                <span style="color:#8C2F1E;font-weight:600;cursor:pointer" onClick="{{ doRemove }}">Not a place</span><span>·</span>
+                <span style="color:#6B5900;font-weight:600;cursor:pointer" onClick="{{ doFlag }}">Flag</span>
+              </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ advancedShown }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:11px">
+            <div>
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Rename / fix spelling</div>
+              <div style="display:flex;gap:6px">
+                <input value="{{ editName }}" onInput="{{ onEditName }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#1c1917;background:#fff;flex:1;min-width:0" />
+                <div style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#E6F1FB;color:#0C447C;border:0.5px solid #B5D4F4;cursor:pointer;white-space:nowrap" onClick="{{ doRename }}">Save</div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Merge into an existing product</div>
+              <div style="display:flex;gap:6px">
+                <input value="{{ mergeInput }}" onInput="{{ onMerge }}" list="tokennames" placeholder="Type a product name…" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#1c1917;background:#fff;flex:1;min-width:0" />
+                <div style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#FAEEDA;color:#633806;border:0.5px solid #FAC775;cursor:pointer;white-space:nowrap" onClick="{{ doMerge }}">Merge</div>
+              </div>
+            </div>
+
+            <sc-if value="{{ sel.showSplit }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Split into two products</div>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <input value="{{ splitA }}" onInput="{{ onSplitA }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#1c1917;background:#fff;flex:1;min-width:0" />
+                  <span style="color:#a8a29e">+</span>
+                  <input value="{{ splitB }}" onInput="{{ onSplitB }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:7px 10px;font-size:12px;color:#1c1917;background:#fff;flex:1;min-width:0" />
+                  <div style="display:flex;align-items:center;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#F0EAFB;color:#4A2A86;border:0.5px solid #D4C2F4;cursor:pointer" onClick="{{ doSplit }}">Split</div>
+                </div>
+              </div>
+            </sc-if>
+              <div>
+                <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Known-places dictionary</div>
+                <div style="display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:6px;font-size:12px;font-weight:600;background:#fff;color:#57534e;border:0.5px solid #d6d3d1;cursor:pointer" onClick="{{ doDict }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg> {{ sel.dictLabel }}</div>
+              </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ sel.actioned }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f5f5f4;border:0.5px solid #e7e5e4;border-radius:8px;padding:11px 13px">
+                <div style="display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#57534e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div style="font-size:12px;color:#1c1917;font-weight:600">{{ sel.actionedNote }}</div></div>
+                <div style="font-size:12px;color:#185FA5;font-weight:600;cursor:pointer" onClick="{{ doUndo }}">Undo</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:40px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d6d3d1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+            <div style="font-size:13px;color:#a8a29e;line-height:1.5">Select a token from the list<br>to review and correct it</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+
+
+  </div>
+</div>
+
+<datalist id="tokennames"><sc-for list="{{ allNames }}" as="n" hint-placeholder-count="10"><option value="{{ n }}"></option></sc-for></datalist>
+
+<sc-if value="{{ applyOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(28,25,23,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:24px;animation:ovIn .15s ease" onClick="{{ closeApply }}">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:86vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3);animation:cardIn .2s ease" onClick="{{ stop }}">
+      <div style="padding:16px 20px;border-bottom:0.5px solid #e7e5e4;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff">
+        <div>
+          <div style="font-size:15px;font-weight:600">Sync {{ pendingCount }} {{ pendingWord }} to the database</div>
+          <div style="font-size:11px;color:#57534e;margin-top:1px">Rewrites the products table and affected day rows — the builder picks up clean data on next load</div>
+        </div>
+        <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#57534e" onClick="{{ closeApply }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Change list</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ changes }}" as="ch" hint-placeholder-count="3">
+              <div style="display:flex;align-items:flex-start;gap:9px;padding:8px 10px;background:#fafaf9;border:0.5px solid #f0efed;border-radius:7px">
+                <span style="{{ ch.tagStyle }}">{{ ch.tag }}</span>
+                <div style="font-size:12px;color:#1c1917;line-height:1.45;flex:1">{{ ch.desc }}</div>
+                <div style="font-size:11px;color:#185FA5;font-weight:600;cursor:pointer;white-space:nowrap" onClick="{{ ch.onRemove }}">Undo</div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ noChanges }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:#a8a29e;padding:6px 0">No corrections yet — review some tokens first.</div></sc-if>
+        </div>
+
+        <sc-if value="{{ hasChanges }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Generated SQL</div>
+            <div style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;line-height:1.6;color:#d6e9ff;background:#1c2530;border-radius:8px;padding:13px 15px;white-space:pre-wrap;overflow-x:auto">{{ sqlText }}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hasBackups }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Save history &#8212; click any entry to restore</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{ backupItems }}" as="bk" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:#f5f5f4;border-radius:6px;font-size:11px">
+                  <div style="color:#1c1917;font-weight:600;min-width:140px">{{ bk.label }}</div>
+                  <div style="color:#78716c;flex:1">{{ bk.counts }}</div>
+                  <div style="color:#185FA5;font-weight:600;cursor:pointer;white-space:nowrap" onClick="{{ bk.onRestore }}">Restore</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ syncResult }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 13px;border-radius:8px;font-size:12px;font-weight:500;background:{{ syncBg }};color:{{ syncColor }}">{{ syncMsg }}</div>
+        </sc-if>
+
+        <sc-if value="{{ !serverMode }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:11px;color:#78716c;padding:6px 2px">For one-click sync: run <code style="background:#f0efed;padding:1px 6px;border-radius:4px">python server.py</code> then open <code style="background:#f0efed;padding:1px 6px;border-radius:4px">http://localhost:8765</code></div>
+        </sc-if>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;border-top:0.5px solid #e7e5e4;padding-top:14px">
+          <div style="display:flex;align-items:center;gap:5px;padding:8px 13px;border-radius:6px;font-size:12px;font-weight:600;background:#fff;color:#57534e;border:0.5px solid #d6d3d1;cursor:pointer" onClick="{{ downloadJSON }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg> Download JSON</div>
+          <div style="display:flex;align-items:center;gap:5px;padding:8px 13px;border-radius:6px;font-size:12px;font-weight:600;background:#fff;color:#57534e;border:0.5px solid #d6d3d1;cursor:pointer" onClick="{{ copySQL }}">Copy SQL</div>
+          <div style="display:flex;align-items:center;gap:5px;padding:8px 15px;border-radius:6px;font-size:12px;font-weight:600;background:{{ applyBg3 }};color:{{ applyColor3 }};border:0.5px solid {{ applyBorder3 }};cursor:{{ applyCursor3 }}" onClick="{{ applyAll }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> {{ applyLabel }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(28,25,23,.42);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow-y:auto;animation:ovIn .15s ease" onClick="{{ closeHelp }}">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:660px;box-shadow:0 24px 60px rgba(0,0,0,.3);animation:cardIn .2s ease;margin:auto" onClick="{{ stop }}">
+      <div style="padding:16px 20px;border-bottom:0.5px solid #e7e5e4;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;border-radius:12px 12px 0 0;z-index:1">
+        <div style="display:flex;align-items:center;gap:9px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#639922" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><div style="font-size:15px;font-weight:600">How to use the Token Editor</div></div>
+        <div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#57534e;font-size:16px" onClick="{{ closeHelp }}">&#10005;</div>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:20px;font-size:13px;line-height:1.6;color:#44403c">
+
+        <div style="background:#EAF3DE;border-radius:8px;padding:13px 15px;font-size:12px;color:#27500A;line-height:1.55">
+          <strong>Goal:</strong> Clean up place-name tags so the Itinerary Builder only shows correct product chips. Fixes are saved to <code style="background:#C0DD97;padding:1px 5px;border-radius:4px;font-size:11px">token_corrections.json</code> and re-applied automatically every time <code style="background:#C0DD97;padding:1px 5px;border-radius:4px;font-size:11px">prepare_data.py</code> runs &#8212; fix each issue once, it stays fixed.
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:700">Step 1 &#8212; Filter to flagged tokens</div>
+          <div style="font-size:12px;color:#57534e;margin-bottom:10px">Use <strong style="color:#1c1917">Status &#8594; Needs review</strong> to see only tokens the tagger has flagged. There are 6 flag types, shown in priority order:</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+            <div style="display:flex;gap:10px;align-items:flex-start"><span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#FBE9E7;color:#8C2F1E;border:0.5px solid #F3B5A7;white-space:nowrap;flex-shrink:0;margin-top:1px">Not a place?</span><span>Possessive form like <em>Perth&#8217;s</em>. Always remove &#8212; click the red button.</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#F0EAFB;color:#4A2A86;border:0.5px solid #D4C2F4;white-space:nowrap;flex-shrink:0;margin-top:1px">Should split</span><span>Two places joined by &amp; (e.g. <em>Kakadu &amp; Katherine</em>). Split them into two separate products.</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#FBE9E7;color:#8C2F1E;border:0.5px solid #F3B5A7;white-space:nowrap;flex-shrink:0;margin-top:1px">Extra word</span><span>Action verb or generic noun stuck to a place name &#8212; e.g. <em>Arrive Broome</em> or <em>Cable Beach transfer</em>. Rename to the place only.</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#E6F1FB;color:#0C447C;border:0.5px solid #B5D4F4;white-space:nowrap;flex-shrink:0;margin-top:1px">Duplicate?</span><span>Near-duplicate of a more popular token (e.g. <em>uluru</em> vs <em>Uluru</em>). Merge into the canonical version to combine popularity counts.</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><span style="display:inline-flex;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#FAEEDA;color:#633806;border:0.5px solid #FAC775;white-space:nowrap;flex-shrink:0;margin-top:1px">ALL CAPS / lowercase</span><span>Token extracted in wrong case. Click the recommended fix to normalise to title case.</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:700">Step 2 &#8212; Review each token</div>
+          <div style="font-size:12px;color:#57534e;display:flex;flex-direction:column;gap:7px">
+            <div>Click any row to open the detail panel on the right. You will see the flag description, location examples where it was extracted from, and the suggested fix.</div>
+            <div style="display:flex;flex-direction:column;gap:5px;padding:10px 12px;background:#f5f5f4;border-radius:8px">
+              <div><strong style="color:#1c1917">Recommended fix button</strong> &#8212; green = rename, red = remove. One click applies it.</div>
+              <div><strong style="color:#1c1917">Not right? Edit manually</strong> &#8212; opens fields to type a custom name, merge into an existing product, or define custom split parts.</div>
+              <div><strong style="color:#1c1917">Keep as-is</strong> &#8212; Approve the token if it is actually correct despite the flag.</div>
+              <div><strong style="color:#1c1917">Not a place</strong> &#8212; Remove it from the product list entirely.</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:700">Step 3 &#8212; Export and apply</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#57534e">
+            <div style="display:flex;gap:10px;align-items:flex-start"><div style="width:20px;height:20px;border-radius:99px;background:#639922;color:#fff;font-weight:700;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div><div>Click <strong style="color:#1c1917">Preview &amp; sync to database</strong> at the top of this page &#8212; review the full change list.</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><div style="width:20px;height:20px;border-radius:99px;background:#639922;color:#fff;font-weight:700;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div><div>Click <strong style="color:#1c1917">Download token_corrections.json</strong>.</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><div style="width:20px;height:20px;border-radius:99px;background:#639922;color:#fff;font-weight:700;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div><div>Move the file into the <code style="background:#f0efed;padding:1px 5px;border-radius:4px">Build and explore</code> folder (replaces the old one).</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start"><div style="width:20px;height:20px;border-radius:99px;background:#639922;color:#fff;font-weight:700;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">4</div><div>Run <code style="background:#f0efed;padding:1px 5px;border-radius:4px">python prepare_data.py</code> then reload the Itinerary Builder. Fixed chips appear immediately.</div></div>
+            <div style="background:#FBE9E7;border-radius:7px;padding:10px 12px;color:#8C2F1E;font-size:11px;margin-top:2px"><strong>Important:</strong> Changes live only in this browser session. Download before closing the tab or you will lose unsaved work.</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:700">Tips</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:#57534e">
+            <div>&#8226; Filter by <strong style="color:#1c1917">State</strong> to work on one region at a time.</div>
+            <div>&#8226; The <strong style="color:#1c1917">Day rows</strong> column shows how many itinerary day-rows this token appears in &#8212; higher means more impact when fixed.</div>
+            <div>&#8226; <strong style="color:#1c1917">Source</strong>: <em>B</em> = Board only, <em>C</em> = Competitor only, <em>BC</em> = both. Board tokens are high-value.</div>
+            <div>&#8226; On the next pipeline run, all past corrections in <code style="background:#f0efed;padding:1px 5px;border-radius:4px">token_corrections.json</code> are re-applied automatically &#8212; no re-editing needed. Just review new flags.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1c1917;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;box-shadow:0 6px 24px rgba(0,0,0,.2);animation:toastIn .2s ease;z-index:70;display:flex;align-items:center;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#97C459" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-4.5"/></svg> {{ toast }}</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:840}}">
+class Component extends DCLogic {
+  seed = TOKENS;
+
+  state = { tokens: this.seed.map((t,i)=>({ id:i, name:t.name, state:t.state, count:t.count, src:t.src, issue:t.issue||null, suggest:t.suggest||'', split:t.split||null, ctx:t.ctx||[], status:'unreviewed', newName:'', mergeInto:'', splitInto:null, dict:false })),
+    selectedId:null, search:'', filterState:'all', filterStatus:'all', advanced:false,
+    editName:'', mergeInput:'', splitA:'', splitB:'', applyOpen:false, helpOpen:false, syncing:false, syncResult:null, backups:[], toast:'' };
+
+  srcLabel(s){ return s==='B' ? 'Board' : s==='C' ? 'Competitor' : 'Board + Competitor'; }
+
+  issueMeta(issue){
+    const m = {
+      caps:{label:'ALL CAPS', bg:'#FAEEDA', color:'#633806', border:'#FAC775', desc:'Extracted in all capitals. Normalise to title case so it matches other tokens.'},
+      lower:{label:'lowercase', bg:'#FAEEDA', color:'#633806', border:'#FAC775', desc:'Extracted in lowercase. Normalise to title case so it matches other tokens.'},
+      extra:{label:'Extra word', bg:'#FBE9E7', color:'#8C2F1E', border:'#F3B5A7', desc:'A non-place word was joined to the place name during extraction. Trim it back to the place.'},
+      nonplace:{label:'Not a place?', bg:'#FBE9E7', color:'#8C2F1E', border:'#F3B5A7', desc:'This looks like filler text rather than a named place. It should be removed from the product list.'},
+      dupe:{label:'Duplicate?', bg:'#E6F1FB', color:'#0C447C', border:'#B5D4F4', desc:'A near-duplicate of an existing product. Merge them so the popularity counts combine.'},
+      split:{label:'Should split', bg:'#F0EAFB', color:'#4A2A86', border:'#D4C2F4', desc:'Two distinct places were extracted as one token. Split them into separate products.'}
+    };
+    return m[issue] || {label:'Clean', bg:'#f5f5f4', color:'#78716c', border:'#e7e5e4', desc:'No issues detected by the tagger.'};
+  }
+
+  statusMeta(s){
+    const m = {
+      unreviewed:{label:'Unreviewed', bg:'#f5f5f4', color:'#78716c', border:'#e7e5e4'},
+      approved:{label:'Approved', bg:'#EAF3DE', color:'#27500A', border:'#C0DD97'},
+      fixed:{label:'Renamed', bg:'#E6F1FB', color:'#0C447C', border:'#B5D4F4'},
+      removed:{label:'Removed', bg:'#FBE9E7', color:'#8C2F1E', border:'#F3B5A7'},
+      merged:{label:'Merged', bg:'#FAEEDA', color:'#633806', border:'#FAC775'},
+      split:{label:'Split', bg:'#F0EAFB', color:'#4A2A86', border:'#D4C2F4'},
+      flagged:{label:'Flagged', bg:'#FEF6E0', color:'#6B5900', border:'#EBD98A'}
+    };
+    return m[s] || m.unreviewed;
+  }
+  badge(meta, extra){ return Object.assign({display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'99px',fontSize:'10px',fontWeight:600,whiteSpace:'nowrap',background:meta.bg,color:meta.color,border:'0.5px solid '+meta.border}, extra||{}); }
+
+  tok(id){ return this.state.tokens.find(t=>t.id===id); }
+  patch(id, p){ this.setState({tokens: this.state.tokens.map(t=> t.id===id ? Object.assign({}, t, p) : t)}); }
+
+  select = (id) => { const t=this.tok(id); this.setState({ selectedId:id, advanced:false, editName: t.newName || t.suggest || t.name, mergeInput: t.mergeInto || t.suggest || '', splitA: (t.splitInto&&t.splitInto[0]) || (t.split&&t.split[0]) || '', splitB: (t.splitInto&&t.splitInto[1]) || (t.split&&t.split[1]) || '' }); };
+  toggleAdvanced = ()=>this.setState({advanced:!this.state.advanced});
+  applyRec = ()=>{ const t=this.tok(this.state.selectedId); if(!t) return;
+    if(!t.issue) return this.doApprove();
+    if(t.issue==='nonplace') return this.doRemove();
+    if(t.issue==='dupe'){ this.patch(t.id,{status:'merged',mergeInto:t.suggest}); return this.toast('Merged into \u201c'+t.suggest+'\u201d'); }
+    if(t.issue==='split'){ this.patch(t.id,{status:'split',splitInto:t.split}); return this.toast('Split into two products'); }
+    this.patch(t.id,{status:'fixed',newName:t.suggest}); this.toast('Renamed to \u201c'+t.suggest+'\u201d');
+  };
+  onSearch = (e)=>this.setState({search:e.target.value});
+  onFilterState = (e)=>this.setState({filterState:e.target.value});
+  onFilterStatus = (e)=>this.setState({filterStatus:e.target.value});
+  onEditName = (e)=>this.setState({editName:e.target.value});
+  onMerge = (e)=>this.setState({mergeInput:e.target.value});
+  onSplitA = (e)=>this.setState({splitA:e.target.value});
+  onSplitB = (e)=>this.setState({splitB:e.target.value});
+
+  doRename = ()=>{ const id=this.state.selectedId; const v=(this.state.editName||'').trim(); if(!v) return; this.patch(id,{status:'fixed', newName:v}); this.toast('Renamed to \u201c'+v+'\u201d'); };
+  doApprove = ()=>{ this.patch(this.state.selectedId,{status:'approved'}); this.toast('Approved'); };
+  doRemove = ()=>{ this.patch(this.state.selectedId,{status:'removed'}); this.toast('Marked as not a place'); };
+  doFlag = ()=>{ this.patch(this.state.selectedId,{status:'flagged'}); this.toast('Flagged for review'); };
+  doMerge = ()=>{ const v=(this.state.mergeInput||'').trim(); if(!v) return; this.patch(this.state.selectedId,{status:'merged', mergeInto:v}); this.toast('Merged into \u201c'+v+'\u201d'); };
+  doSplit = ()=>{ const a=(this.state.splitA||'').trim(), b=(this.state.splitB||'').trim(); if(!a||!b) return; this.patch(this.state.selectedId,{status:'split', splitInto:[a,b]}); this.toast('Split into two products'); };
+  doDict = ()=>{ const t=this.tok(this.state.selectedId); this.patch(t.id,{dict:!t.dict}); this.toast(t.dict?'Removed from dictionary':'Added to known-places dictionary'); };
+  doUndo = ()=>{ this.patch(this.state.selectedId,{status:'unreviewed', newName:'', mergeInto:'', splitInto:null, dict:false}); this.toast('Reverted'); };
+  undoId = (id)=>{ this.patch(id,{status:'unreviewed', newName:'', mergeInto:'', splitInto:null, dict:false}); };
+
+  openApply = ()=>{ if(this.pendingTokens().length){ this.setState({applyOpen:true,syncResult:null}); this.loadBackups(); } };
+  closeApply = ()=>this.setState({applyOpen:false});
+  loadBackups = async ()=>{
+    try{ const r=await fetch('/backups'); const d=await r.json(); if(Array.isArray(d)) this.setState({backups:d}); }catch(e){}
+  };
+  doRestore = async (file)=>{
+    this.setState({syncing:true,syncResult:null});
+    try{
+      const r=await fetch('/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file})});
+      const d=await r.json();
+      this.setState({syncing:false,syncResult:d});
+      if(d.ok){ this.loadBackups(); this.toast('Restored — reload Itinerary Builder to see changes.'); }
+    }catch(e){
+      this.setState({syncing:false,syncResult:{ok:false,message:'Server not running.'}});
+    }
+  };
+  openHelp = ()=>this.setState({helpOpen:true});
+  closeHelp = ()=>this.setState({helpOpen:false});
+  stop = (e)=>e.stopPropagation();
+  applyAll = async ()=>{
+    const pending=this.pendingTokens(); const n=pending.length; if(!n) return;
+    const c={rename:{},split:{},delete:[]};
+    for(const t of pending){
+      if(t.status==='fixed'&&t.newName)        c.rename[t.name]=t.newName;
+      else if(t.status==='merged'&&t.mergeInto) c.rename[t.name]=t.mergeInto;
+      else if(t.status==='removed')             c.delete.push(t.name);
+      else if(t.status==='split'&&t.splitInto)  c.split[t.name]=t.splitInto;
+    }
+    this.setState({syncing:true,syncResult:null});
+    try{
+      const res=await fetch('/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({corrections:c})});
+      const d=await res.json();
+      this.setState({syncing:false,syncResult:d});
+      if(d.ok){ this.loadBackups(); this.toast('Synced — data.js regenerated. Reload Itinerary Builder.'); }
+    }catch(e){
+      this.setState({syncing:false,syncResult:{ok:false,message:'Server not running — use “Download JSON” and run prepare_data.py manually.'}});
+    }
+  };
+
+  pendingTokens(){ return this.state.tokens.filter(t=> t.status!=='unreviewed' || t.dict); }
+
+  sqlFor(t){
+    const q = s => "'"+String(s).replace(/'/g,"''")+"'";
+    const lines = [];
+    if (t.status==='fixed'){ const nn=t.newName||t.name;
+      lines.push('UPDATE products SET name='+q(nn)+' WHERE name='+q(t.name)+' AND state='+q(t.state)+';');
+      lines.push('UPDATE day_rows SET products=array_replace(products,'+q(t.name)+','+q(nn)+') WHERE state='+q(t.state)+';');
+    } else if (t.status==='removed'){
+      lines.push('DELETE FROM products WHERE name='+q(t.name)+' AND state='+q(t.state)+';');
+      lines.push('UPDATE day_rows SET products=array_remove(products,'+q(t.name)+') WHERE state='+q(t.state)+';');
+    } else if (t.status==='merged'){ const tg=t.mergeInto||t.name;
+      lines.push('UPDATE day_rows SET products=array_replace(products,'+q(t.name)+','+q(tg)+') WHERE state='+q(t.state)+';');
+      lines.push('DELETE FROM products WHERE name='+q(t.name)+' AND state='+q(t.state)+';  -- popularity now folds into '+tg);
+    } else if (t.status==='split'){ const a=(t.splitInto&&t.splitInto[0])||'', b=(t.splitInto&&t.splitInto[1])||'';
+      lines.push("INSERT INTO products(name,state) VALUES("+q(a)+","+q(t.state)+"),("+q(b)+","+q(t.state)+") ON CONFLICT DO NOTHING;");
+      lines.push('UPDATE day_rows SET products=array_cat(array_remove(products,'+q(t.name)+'),ARRAY['+q(a)+','+q(b)+']) WHERE state='+q(t.state)+';');
+      lines.push('DELETE FROM products WHERE name='+q(t.name)+' AND state='+q(t.state)+';');
+    } else if (t.status==='approved'){
+      lines.push('UPDATE products SET verified=true WHERE name='+q(t.name)+' AND state='+q(t.state)+';');
+    } else if (t.status==='flagged'){
+      lines.push('-- '+t.name+' ('+t.state+') flagged for manual review, no automatic change');
+    }
+    if (t.dict){ lines.push('INSERT INTO known_places(name,state) VALUES('+q(t.newName||t.name)+','+q(t.state)+') ON CONFLICT DO NOTHING;'); }
+    return lines;
+  }
+  changeDesc(t){
+    if (t.status==='fixed') return 'Rename \u201c'+t.name+'\u201d \u2192 \u201c'+(t.newName||t.name)+'\u201d';
+    if (t.status==='removed') return 'Remove \u201c'+t.name+'\u201d from products (not a place)';
+    if (t.status==='merged') return 'Merge \u201c'+t.name+'\u201d into \u201c'+(t.mergeInto||'')+'\u201d';
+    if (t.status==='split') return 'Split \u201c'+t.name+'\u201d into \u201c'+((t.splitInto&&t.splitInto[0])||'')+'\u201d + \u201c'+((t.splitInto&&t.splitInto[1])||'')+'\u201d';
+    if (t.status==='approved') return 'Approve \u201c'+t.name+'\u201d as verified';
+    if (t.status==='flagged') return 'Flag \u201c'+t.name+'\u201d for manual review';
+    return 'Add \u201c'+t.name+'\u201d to dictionary';
+  }
+  changeTag(t){ const s = t.status!=='unreviewed' ? t.status : 'dict'; const map={fixed:['RENAME',this.statusMeta('fixed')],removed:['REMOVE',this.statusMeta('removed')],merged:['MERGE',this.statusMeta('merged')],split:['SPLIT',this.statusMeta('split')],approved:['APPROVE',this.statusMeta('approved')],flagged:['FLAG',this.statusMeta('flagged')],dict:['DICT',this.statusMeta('fixed')]}; return map[s]; }
+
+  toast(msg){ this.setState({toast:msg}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:''}),2400); }
+  download(filename, content, mime){ const blob=new Blob([content],{type:mime}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
+  copySQL = ()=>{ const txt=this.pendingTokens().map(t=>this.sqlFor(t).join('\n')).join('\n\n'); if(navigator.clipboard) navigator.clipboard.writeText(txt); this.toast('SQL copied to clipboard'); };
+  downloadJSON = ()=>{
+    const c = { rename: {}, split: {}, delete: [] };
+    for (const t of this.pendingTokens()) {
+      if      (t.status==='fixed'   && t.newName)    c.rename[t.name] = t.newName;
+      else if (t.status==='merged'  && t.mergeInto)  c.rename[t.name] = t.mergeInto;
+      else if (t.status==='removed')                  c.delete.push(t.name);
+      else if (t.status==='split'   && t.splitInto)  c.split[t.name]  = t.splitInto;
+    }
+    this.download('token_corrections.json', JSON.stringify(c, null, 2), 'application/json');
+    this.toast('Downloaded token_corrections.json');
+  };
+
+  renderVals(){
+    const tokens = this.state.tokens;
+    const totalTokens = tokens.length;
+    const needsReview = tokens.filter(t=>t.issue && t.status==='unreviewed').length;
+    const cleanCount = tokens.filter(t=>!t.issue).length;
+    const pending = this.pendingTokens();
+    const pendingCount = pending.length;
+    const affectedRows = pending.reduce((s,t)=> s + (t.status==='approved'||t.status==='flagged'?0:t.count), 0);
+
+    const states = [...new Set(tokens.map(t => t.state))].filter(Boolean).sort();
+    const stateOptions = [{key:'all',label:'All states'}].concat(states.map(s=>({key:s,label:s})));
+    const statusOptions = [{key:'all',label:'All statuses'},{key:'review',label:'Needs review'},{key:'unreviewed',label:'Unreviewed'},{key:'approved',label:'Approved'},{key:'fixed',label:'Renamed'},{key:'merged',label:'Merged'},{key:'removed',label:'Removed'},{key:'split',label:'Split'},{key:'flagged',label:'Flagged'}];
+
+    const q = (this.state.search||'').toLowerCase();
+    const fs = this.state.filterState, fst = this.state.filterStatus;
+    const filtered = tokens.filter(t=>{
+      if (q && t.name.toLowerCase().indexOf(q)<0) return false;
+      if (fs!=='all' && t.state!==fs) return false;
+      if (fst==='review'){ if(!(t.issue && t.status==='unreviewed')) return false; }
+      else if (fst!=='all'){ if(t.status!==fst) return false; }
+      return true;
+    });
+
+    const MAX_ROWS = 200;
+    const visible = filtered.slice(0, MAX_ROWS);
+    const rows = visible.map(t=>{
+      const im = this.issueMeta(t.issue), sm = this.statusMeta(t.status);
+      const isSel = t.id===this.state.selectedId;
+      return { name:t.name, state:t.state, count:t.count, source:this.srcLabel(t.src),
+        flagLabel:im.label, flagStyle:this.badge(im),
+        statusLabel:sm.label, statusStyle:this.badge(sm),
+        rowStyle:{ display:'table-row', cursor:'pointer', background: isSel ? '#EAF3DE' : (t.issue && t.status==='unreviewed' ? '#fffdf8' : '#fff'), boxShadow: isSel ? 'inset 2px 0 0 #639922' : 'none' },
+        onSelect:()=>this.select(t.id) };
+    });
+    const rowCountLabel = filtered.length > MAX_ROWS
+      ? (MAX_ROWS + ' of ' + filtered.length + ' shown — filter to narrow')
+      : (filtered.length + ' shown');
+
+    // Cap the merge-suggestion datalist: rendering thousands of <option>s through the
+    // framework on every render blocks the whole component. Prioritise high-count places.
+    const allNames = tokens.filter(t=>!t.issue || t.status==='approved')
+      .sort((a,b)=>b.count-a.count).slice(0,300).map(t=>t.name);
+
+    let sel=null;
+    const st = this.state.selectedId!=null ? this.tok(this.state.selectedId) : null;
+    if (st){
+      const im=this.issueMeta(st.issue), sm=this.statusMeta(st.status);
+      let note='';
+      if (st.status==='fixed') note='Renamed to \u201c'+(st.newName||st.name)+'\u201d';
+      else if (st.status==='merged') note='Merged into \u201c'+st.mergeInto+'\u201d';
+      else if (st.status==='split') note='Split into two products';
+      else if (st.status==='removed') note='Removed from product list';
+      else if (st.status==='approved') note='Approved as verified';
+      else if (st.status==='flagged') note='Flagged for manual review';
+      if (st.dict) note += (note?' · ':'')+'added to dictionary';
+      const actioned = st.status!=='unreviewed' || st.dict;
+      const _enc = encodeURIComponent(st.name + ' Australia');
+      sel = { name:st.name, state:st.state, count:st.count, source:this.srcLabel(st.src),
+        flagLabel:im.label, flagStyle:this.badge(im), issueDesc:im.desc,
+        statusLabel:sm.label, statusStyle:this.badge(sm),
+        contexts:st.ctx, showSplit: st.issue==='split' || (st.splitInto!=null),
+        dictLabel: st.dict ? 'In dictionary' : 'Add to dictionary',
+        actioned, pendingFix: !actioned, actionedNote: note,
+        verifyMapUrl: 'https://maps.google.com/?q=' + _enc,
+        verifySearchUrl: 'https://www.google.com/search?q=' + _enc,
+        verifyWikiUrl: 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(st.name) };
+    }
+
+    let rec=null;
+    if (st){
+      const green={display:'flex',alignItems:'center',justifyContent:'center',gap:'7px',width:'100%',padding:'11px 14px',borderRadius:'8px',fontSize:'13px',fontWeight:600,cursor:'pointer',background:'#5C8A1E',color:'#fff',border:'0.5px solid #4d7619'};
+      const red=Object.assign({},green,{background:'#B0431F',border:'0.5px solid #97381a'});
+      let label, isRemove=false; const issue=st.issue;
+      if (!issue) label='Approve as correct';
+      else if (issue==='nonplace'){ label='Remove \u2014 not a place'; isRemove=true; }
+      else if (issue==='dupe') label='Merge into \u201c'+st.suggest+'\u201d';
+      else if (issue==='split') label='Split into \u201c'+(st.split?st.split[0]:'')+'\u201d + \u201c'+(st.split?st.split[1]:'')+'\u201d';
+      else label='Rename to \u201c'+st.suggest+'\u201d';
+      rec={ label, isRemove, isFix:!isRemove, style: isRemove?red:green };
+    }
+    const advancedShown = this.state.advanced && st && !(st.status!=='unreviewed'||st.dict);
+
+    const changes = pending.map(t=>{ const [tag,meta]=this.changeTag(t); return { desc:this.changeDesc(t), tag, tagStyle:this.badge(meta,{minWidth:'56px',justifyContent:'center'}), onRemove:()=>this.undoId(t.id) }; });
+    const sqlText = pending.map(t=>this.sqlFor(t).join('\n')).join('\n\n');
+
+    const serverMode = typeof location !== 'undefined' && location.protocol !== 'file:';
+    const syncing = this.state.syncing;
+    const syncResult = this.state.syncResult;
+    const syncBg    = syncResult ? (syncResult.ok ? '#EAF3DE' : '#FBE9E7') : '';
+    const syncColor = syncResult ? (syncResult.ok ? '#27500A' : '#8C2F1E') : '';
+    const syncMsg   = syncResult ? syncResult.message : '';
+    const applyLabel  = syncing ? 'Syncing…' : 'Apply \u0026 sync';
+    const applyCursor3= syncing ? 'not-allowed' : (pendingCount>0 ? 'pointer' : 'not-allowed');
+    const applyBg3    = syncing ? '#f5f5f4' : '#EAF3DE';
+    const applyColor3 = syncing ? '#a8a29e' : '#27500A';
+    const applyBorder3= syncing ? '#e7e5e4' : '#C0DD97';
+    const backupItems = this.state.backups.slice(0,8).map(b=>{
+      const ts=b.file.replace('token_corrections_','').replace('.json','');
+      const [date,time]=ts.split('_');
+      const lbl=date+(time?' '+time.replace(/-/g,':'):'');
+      const cnt=(b.counts.rename||0)+' rename · '+(b.counts.delete||0)+' delete · '+(b.counts.split||0)+' split';
+      return {label:lbl, counts:cnt, onRestore:()=>this.doRestore(b.file)};
+    });
+    const hasBackups = backupItems.length > 0;
+
+    const canApply = pendingCount>0;
+    return {
+      totalTokens, needsReview, cleanCount, pendingCount, affectedRows,
+      pendingWord: pendingCount===1?'change':'changes',
+      rowCount: rowCountLabel,
+      stateOptions, statusOptions, search:this.state.search, filterState:this.state.filterState, filterStatus:this.state.filterStatus,
+      onSearch:this.onSearch, onFilterState:this.onFilterState, onFilterStatus:this.onFilterStatus,
+      rows, allNames,
+      selPresent: !!sel, noSel: !sel, sel: sel||{contexts:[]},
+      editName:this.state.editName, mergeInput:this.state.mergeInput, splitA:this.state.splitA, splitB:this.state.splitB,
+      onEditName:this.onEditName, onMerge:this.onMerge, onSplitA:this.onSplitA, onSplitB:this.onSplitB,
+      doRename:this.doRename, doApprove:this.doApprove, doRemove:this.doRemove, doFlag:this.doFlag, doMerge:this.doMerge, doSplit:this.doSplit, doDict:this.doDict, doUndo:this.doUndo,
+      applyOpen:this.state.applyOpen, openApply:this.openApply, closeApply:this.closeApply, stop:this.stop, applyAll:this.applyAll,
+      changes, noChanges: changes.length===0, hasChanges: changes.length>0, sqlText,
+      rec, applyRec:this.applyRec, toggleAdvanced:this.toggleAdvanced, advancedShown, advancedLabel: this.state.advanced ? 'Hide manual edit' : 'Edit manually',
+      copySQL:this.copySQL, downloadJSON:this.downloadJSON, helpOpen:this.state.helpOpen, openHelp:this.openHelp, closeHelp:this.closeHelp,
+      serverMode, syncing, syncResult, syncBg, syncColor, syncMsg, applyLabel, applyCursor3, applyBg3, applyColor3, applyBorder3, backupItems, hasBackups,
+      applyBtnBg: canApply?'#EAF3DE':'#f5f5f4', applyBtnColor: canApply?'#27500A':'#a8a29e', applyBtnBorder: canApply?'#C0DD97':'#e7e5e4', applyCursor: canApply?'pointer':'not-allowed',
+      toast:this.state.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
