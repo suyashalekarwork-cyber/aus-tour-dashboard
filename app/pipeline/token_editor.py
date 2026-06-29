@@ -9,9 +9,9 @@ import subprocess
 from pathlib import Path
 from collections import defaultdict
 
-ROOT             = Path(__file__).parent.parent   # the "Build and explore" folder
+ROOT             = Path(__file__).parent.parent   # the app/ folder
 CSV_PATH         = r'C:\Users\SuyashA\Desktop\Itinenaries_analysis\data\keywords\keyword_dataset_2026-06.csv'
-CORRECTIONS_PATH = ROOT / 'data' / 'token_corrections.json'
+CORRECTIONS_PATH = ROOT / 'frontend' / 'token_corrections.json'
 PREPARE_SCRIPT   = ROOT / 'pipeline' / 'prepare_data.py'
 
 

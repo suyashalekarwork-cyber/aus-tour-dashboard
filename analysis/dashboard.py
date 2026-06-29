@@ -65,22 +65,9 @@ def load_data():
             tour_name  = ("tour_name",  "first"),
             source     = ("source",     "first"),
             total_days = ("total_days", "first"),
-            price      = ("price",      "first"),
             states     = ("state",      _au_states),
             cities     = ("city",       _cities),
         )
-    )
-
-    def _price_num(p):
-        if pd.isna(p) or str(p).strip() == "":
-            return 0
-        d = re.sub(r"[^\d]", "", str(p))
-        return int(d) if d else 0
-
-    tours["price_num"]  = tours["price"].apply(_price_num)
-    tours["price_disp"] = tours.apply(
-        lambda r: r["price"] if (not pd.isna(r["price"]) and str(r["price"]).strip()) else "",
-        axis=1,
     )
 
     return tours, days
@@ -117,7 +104,7 @@ def make_tour_excel(tour: pd.Series, days: pd.DataFrame) -> bytes:
     c = ws["A2"]
     c.value     = (
         f"  {tour['source']}   |   {tour['total_days']} days"
-        f"   |   {tour['price_disp']}   |   {tour['states']}"
+        f"   |   {tour['states']}"
     )
     c.font      = Font(bold=True, color="FFFFFF", size=10)
     c.fill      = _fill("2E75B6")
@@ -251,8 +238,8 @@ def main():
     with st.sidebar:
         if len(filt) > 0:
             csv_bytes = (
-                filt[["tour_name", "total_days", "states", "cities", "price_disp", "tour_url"]]
-                .rename(columns={"price_disp": "price", "total_days": "duration_days"})
+                filt[["tour_name", "total_days", "states", "cities", "tour_url"]]
+                .rename(columns={"total_days": "duration_days"})
                 .to_csv(index=False)
                 .encode()
             )
@@ -324,11 +311,10 @@ def main():
         with st.container(border=True):
             st.markdown(f"### {tour['tour_name']}")
 
-            c1, c2, c3, c4 = st.columns(4)
+            c1, c2, c3 = st.columns(3)
             c1.markdown(f"**Source:** {tour['source']}")
             c2.markdown(f"**Duration:** {tour['total_days']} days")
-            c3.markdown(f"**Price:** {tour['price_disp'] or '—'}")
-            c4.markdown(f"**States:** {tour['states'] or 'N/A'}")
+            c3.markdown(f"**States:** {tour['states'] or 'N/A'}")
 
             if tour["cities"]:
                 st.caption(f"Cities visited: {tour['cities']}")

@@ -57,6 +57,7 @@ SOURCE_LABEL = {
     "veena_world":        "Veena World",
     "sotc":               "SOTC",
     "make_my_trip":       "MakeMyTrip",
+    "chan_brothers":      "Chan Brothers",
 }
 
 

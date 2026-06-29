@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./vendor/react.production.min.js"></script>
-<script src="./vendor/react-dom.production.min.js"></script>
-<script src="./vendor/babel.min.js"></script>
-<script src="./support.js"></script>
+<script src="./react.production.min.js"></script>
+<script src="./react-dom.production.min.js"></script>
+<script src="./babel.min.js"></script>
+<script src="./tokens.js"></script>
 <script src="./data.js"></script>
+<script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
@@ -32,11 +33,12 @@ input{font-family:inherit}
       <div style="{{ navInsightsStyle }}" onClick="{{ navInsights }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg> Product insights</div>
       <div style="{{ navGapStyle }}" onClick="{{ navGap }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 3 3v6"/><path d="M15.5 18H9a3 3 0 0 1-3-3V8.5"/></svg> Board vs operators</div>
       <div style="{{ navDataStyle }}" onClick="{{ navData }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg> Tagged data</div>
+      <div style="{{ navSavedStyle }}" onClick="{{ navSaved }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Saved Itineraries</div>
     </div>
     <hr style="border:none;border-top:0.5px solid #e7e5e4;margin:4px 0;width:100%">
-    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Tours in dataset</div><div style="font-size:18px;font-weight:600">1,329</div></div>
-    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Distinct products</div><div style="font-size:18px;font-weight:600">3,223</div></div>
-    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Day rows</div><div style="font-size:18px;font-weight:600">9,596</div></div>
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Tours in dataset</div><div style="font-size:18px;font-weight:600">835</div></div>
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Distinct products</div><div style="font-size:18px;font-weight:600">{{ distinctProducts }}</div></div>
+    <div style="padding:6px 0"><div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Day rows</div><div style="font-size:18px;font-weight:600">7,635</div></div>
   </div>
 
   <div style="flex:1;display:flex;flex-direction:column;min-width:0">
@@ -62,7 +64,10 @@ input{font-family:inherit}
           </select>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex:1">
-          <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">Tour name</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">Tour name</div>
+            <sc-if value="{{ hasTourUrl }}" hint-placeholder-val="{{ false }}"><a href="{{ tourUrl }}" target="_blank" rel="noopener" style="font-size:11px;color:#185FA5;text-decoration:none;font-weight:500">View original itinerary ↗</a></sc-if>
+          </div>
           <input value="{{ tourName }}" onChange="{{ onTourName }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;width:100%;min-width:180px" />
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -96,20 +101,37 @@ input{font-family:inherit}
                 <sc-if value="{{ day.city }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#a8a29e;white-space:nowrap;flex-shrink:0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>{{ day.city }}</span></sc-if>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><path d="m6 9 6 6 6-6"/></svg>
               </div>
-              <div style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">
-                <sc-if value="{{ day.hasDesc }}" hint-placeholder-val="{{ false }}">
-                  <div style="font-size:12px;color:#57534e;line-height:1.5;border:0.5px solid #e7e5e4;border-radius:6px;padding:7px 9px;background:#f5f5f4">{{ day.desc }}</div>
-                </sc-if>
-                <sc-if value="{{ day.hasContent }}" hint-placeholder-val="{{ true }}">
-                  <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-                    <sc-for list="{{ day.chips }}" as="chip" hint-placeholder-count="3">
-                      <span style="{{ chip.style }}" onClick="{{ chip.onClick }}" title="{{ chip.title }}">{{ chip.label }}<sc-if value="{{ chip.removable }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;margin-left:2px"><path d="M18 6 6 18M6 6l12 12"/></svg></sc-if></span>
-                    </sc-for>
-                    <sc-if value="{{ day.isActive }}" hint-placeholder-val="{{ false }}">
-                      <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:#fafaf9;color:#a8a29e;border:0.5px dashed #d6d3d1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> click suggestions →</span>
-                    </sc-if>
+              <div style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">
+                <sc-if value="{{ day.hasPlaces }}" hint-placeholder-val="{{ true }}">
+                  <div>
+                    <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Places to visit</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                      <sc-for list="{{ day.prodChips }}" as="chip" hint-placeholder-count="3">
+                        <span style="{{ chip.style }}" onClick="{{ chip.onClick }}" title="{{ chip.title }}">{{ chip.label }}<sc-if value="{{ chip.removable }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55;margin-left:2px"><path d="M18 6 6 18M6 6l12 12"/></svg></sc-if></span>
+                      </sc-for>
+                      <sc-if value="{{ day.isActive }}" hint-placeholder-val="{{ false }}">
+                        <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:#fafaf9;color:#a8a29e;border:0.5px dashed #d6d3d1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> add more →</span>
+                      </sc-if>
+                    </div>
                   </div>
                 </sc-if>
+                <sc-if value="{{ day.freeDay }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:12px;color:#a8a29e;font-style:italic;padding:2px 0">{{ day.freeText }}</div>
+                </sc-if>
+                <div>
+                  <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Themes</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                    <sc-for list="{{ day.themeChips }}" as="chip" hint-placeholder-count="3">
+                      <span style="{{ chip.style }}" onClick="{{ chip.stop }}">{{ chip.label }}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5;margin-left:3px;cursor:pointer;vertical-align:-1px" onClick="{{ chip.onRemove }}"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+                    </sc-for>
+                    <sc-if value="{{ day.isActive }}" hint-placeholder-val="{{ false }}">
+                      <input value="{{ day.themeInput }}" onChange="{{ day.onThemeInput }}" onKeyDown="{{ day.onThemeKey }}" onClick="{{ day.stop }}" placeholder="+ add theme" style="border:0.5px solid #d6d3d1;border-radius:99px;padding:2px 9px;font-size:11px;color:#1c1917;background:#fff;outline:none;width:90px;font-family:inherit" />
+                    </sc-if>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">What you'll do</div>
+                  <textarea value="{{ day.desc }}" onChange="{{ day.onDesc }}" onClick="{{ day.stop }}" placeholder="Add a description for this day…" rows="3" style="border:0.5px solid #e7e5e4;border-radius:6px;padding:7px 9px;background:#fafaf9;font-size:12px;color:#57534e;line-height:1.5;width:100%;resize:vertical;font-family:inherit;outline:none;display:block" /></div>
                 <sc-if value="{{ day.isEmpty }}" hint-placeholder-val="{{ false }}">
                   <div style="font-size:12px;color:#a8a29e;font-style:italic;padding:4px 0">{{ day.emptyText }}</div>
                 </sc-if>
@@ -128,6 +150,12 @@ input{font-family:inherit}
               <sc-for list="{{ suggestTabs }}" as="t" hint-placeholder-count="3">
                 <div style="{{ t.style }}" onClick="{{ t.onClick }}">{{ t.label }}</div>
               </sc-for>
+            </div>
+            <div style="padding:8px 12px 0">
+              <div style="display:flex;align-items:center;gap:6px;border:0.5px solid #d6d3d1;border-radius:6px;padding:5px 9px;background:#fff">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input value="{{ suggestSearch }}" onInput="{{ onSuggestSearch }}" placeholder="Search all places to add…" style="border:none;outline:none;font-size:12px;color:#1c1917;background:transparent;width:100%" />
+              </div>
             </div>
             <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
               <div style="font-size:10px;color:#a8a29e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">{{ suggestLabel }}</div>
@@ -222,6 +250,7 @@ input{font-family:inherit}
     <div style="background:#fff;border-top:0.5px solid #e7e5e4;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
       <div style="font-size:12px;color:#57534e"><strong style="color:#1c1917;font-weight:600">{{ tourName }}</strong> · {{ duration }} days · {{ productsAdded }} products · {{ stateAbbr }}</div>
       <div style="display:flex;gap:8px">
+        <div style="display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;border:0.5px solid #B5D4F4;background:#E6F1FB;color:#0C447C;cursor:pointer" onClick="{{ saveItinerary }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Itinerary</div>
         <div style="display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;border:0.5px solid #d6d3d1;background:#f5f5f4;color:#57534e;cursor:pointer" onClick="{{ exportCSV }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8"/></svg> Export CSV</div>
         <div style="display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;border:0.5px solid #C0DD97;background:{{ accentTint }};color:#27500A;cursor:pointer" onClick="{{ exportWord }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg> Export Word doc</div>
       </div>
@@ -242,7 +271,10 @@ input{font-family:inherit}
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
               <div>
                 <div style="font-size:14px;font-weight:600;line-height:1.3">{{ t.name }}</div>
-                <div style="font-size:11px;color:#a8a29e;margin-top:2px">{{ t.source }}</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+                  <span style="font-size:11px;color:#a8a29e">{{ t.source }}</span>
+                  <sc-if value="{{ t.hasUrl }}" hint-placeholder-val="{{ false }}"><a href="{{ t.url }}" target="_blank" rel="noopener" style="font-size:11px;color:#185FA5;text-decoration:none;font-weight:500">View original ↗</a></sc-if>
+                </div>
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
                 <span style="{{ t.typeStyle }}">{{ t.type }}</span>
@@ -342,17 +374,29 @@ input{font-family:inherit}
     </sc-if>
 
     <sc-if value="{{ showData }}" hint-placeholder-val="{{ false }}">
-      <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff">
-        <div style="display:flex;align-items:center;gap:10px">
+      <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:0.5px solid #e7e5e4;background:#fff;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:11px;color:#57534e;text-transform:uppercase;letter-spacing:.04em">State</div>
           <select value="{{ stateKey }}" onChange="{{ onState }}" style="border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 10px;font-size:12px;color:#1c1917;background:#fff;min-width:160px;cursor:pointer">
             <sc-for list="{{ stateOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.name }}</option></sc-for>
           </select>
+          <div style="display:flex;align-items:center;gap:6px;border:0.5px solid #d6d3d1;border-radius:6px;padding:6px 9px;background:#fff;min-width:240px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input value="{{ dataSearch }}" onInput="{{ onDataSearch }}" placeholder="Search tour, source, city, location, product, theme…" style="border:none;outline:none;font-size:12px;color:#1c1917;background:transparent;width:100%" />
+          </div>
         </div>
         <div style="display:flex;gap:6px"><sc-for list="{{ dataFilters }}" as="f" hint-placeholder-count="3"><div style="{{ f.style }}" onClick="{{ f.onClick }}">{{ f.label }}</div></sc-for></div>
       </div>
       <div style="padding:14px 16px;background:#fafaf9">
-        <div style="font-size:11px;color:#57534e;margin-bottom:10px;line-height:1.5">Every scraped day is broken to the day level, then a transparent rules-based engine extracts named <strong style="color:#0C447C">products</strong> and maps each day to its <strong style="color:#27500A">themes</strong>. This is the asset every suggestion traces back to.</div>
+        <div style="font-size:11px;color:#57534e;margin-bottom:10px;line-height:1.5">Every scraped day, broken to the day level — the full dataset. A transparent rules-based engine extracts named <strong style="color:#0C447C">products</strong> and maps each day to its <strong style="color:#27500A">themes</strong>. Search and filter here instead of opening the source spreadsheet; flagged tokens are corrected in the Token Editor.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+          <div style="font-size:11px;color:#57534e;font-weight:600">{{ dataCountText }}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="{{ dataPrev.style }}" onClick="{{ dataPrev.onClick }}">{{ dataPrev.label }}</div>
+            <div style="font-size:11px;color:#57534e;min-width:90px;text-align:center">{{ dataPageText }}</div>
+            <div style="{{ dataNext.style }}" onClick="{{ dataNext.onClick }}">{{ dataNext.label }}</div>
+          </div>
+        </div>
         <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;overflow:hidden">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
@@ -370,18 +414,53 @@ input{font-family:inherit}
             <tbody>
               <sc-for list="{{ taggedRows }}" as="r" hint-placeholder-count="14">
                 <tr style="{{ r.rowStyle }}">
-                  <td style="padding:7px 12px;color:#1c1917;border-top:0.5px solid #e7e5e4">{{ r.tour }}</td>
+                  <td style="padding:7px 12px;color:#1c1917;border-top:0.5px solid #e7e5e4">{{ r.tour }}<sc-if value="{{ r.hasUrl }}" hint-placeholder-val="{{ false }}"> <a href="{{ r.url }}" target="_blank" rel="noopener" title="Open the original scraped itinerary" style="color:#185FA5;text-decoration:none;font-weight:600">↗</a></sc-if></td>
                   <td style="padding:7px 12px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.source }}</td>
                   <td style="padding:7px 12px;border-top:0.5px solid #e7e5e4"><span style="{{ r.typeStyle }}">{{ r.type }}</span></td>
                   <td style="padding:7px 8px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.day }}</td>
                   <td style="padding:7px 12px;color:#1c1917;border-top:0.5px solid #e7e5e4">{{ r.city }}</td>
                   <td style="padding:7px 12px;color:#57534e;border-top:0.5px solid #e7e5e4">{{ r.location }}</td>
-                  <td style="padding:7px 12px;color:#0C447C;font-weight:600;border-top:0.5px solid #e7e5e4">{{ r.products }}</td>
+                  <td style="padding:7px 12px;border-top:0.5px solid #e7e5e4"><span style="{{ r.productStyle }}">{{ r.products }}</span></td>
                   <td style="padding:7px 12px;color:#27500A;border-top:0.5px solid #e7e5e4">{{ r.themes }}</td>
                 </tr>
               </sc-for>
             </tbody>
           </table>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showSaved }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 16px;background:#fafaf9;display:flex;flex-direction:column;gap:12px">
+        <sc-if value="{{ savedLoading }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:#a8a29e;text-align:center;padding:40px">Loading saved itineraries…</div>
+        </sc-if>
+        <sc-if value="{{ savedEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:#a8a29e;text-align:center;padding:40px 24px;display:flex;flex-direction:column;align-items:center;gap:10px">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d6d3d1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <div>No saved itineraries yet.<br>Build one in the builder and click <strong>Save Itinerary</strong>.</div>
+          </div>
+        </sc-if>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+          <sc-for list="{{ savedCards }}" as="sv" hint-placeholder-count="3">
+            <div style="background:#fff;border:0.5px solid #e7e5e4;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                <div>
+                  <div style="font-size:14px;font-weight:600;line-height:1.3">{{ sv.name }}</div>
+                  <div style="font-size:11px;color:#a8a29e;margin-top:2px">{{ sv.state }} · {{ sv.duration }} days · saved {{ sv.savedAt }}</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:3px">
+                <sc-for list="{{ sv.themeChips }}" as="tc" hint-placeholder-count="3">
+                  <span style="{{ tc.style }}">{{ tc.label }}</span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#EAF3DE;color:#27500A;border:0.5px solid #C0DD97;cursor:pointer" onClick="{{ sv.onLoad }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg> Load into builder</div>
+                <div style="display:flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:6px;font-size:12px;font-weight:600;background:#FBE9E7;color:#8C2F1E;border:0.5px solid #F3B5A7;cursor:pointer" onClick="{{ sv.onDelete }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg> Delete</div>
+              </div>
+            </div>
+          </sc-for>
         </div>
       </div>
     </sc-if>
@@ -396,46 +475,120 @@ input{font-family:inherit}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:860},&quot;seedState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;WA&quot;,&quot;NT&quot;,&quot;QLD&quot;,&quot;TAS&quot;,&quot;VIC&quot;],&quot;default&quot;:&quot;WA&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#639922&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
-  THEMES = ['Nature & Scenery','Hiking & Walks','Beach & Coast','Wildlife','Food & Wine','Culture & History','Scenic Drives','City & Shopping'];
+  constructor(props){
+    super(props);
+    this.state = { ready:false };
+    this._initError = '';
+    // Initialise synchronously so the very first render already has data —
+    // we don't depend on componentDidMount + setState firing/sticking.
+    this._ensureInit(props);
+  }
 
-  data = DATA;
+  // Idempotent data setup. Builds this.D / this.THEMES / this.catalog and the
+  // initial day state. Captures any failure into this._initError (shown in the
+  // header) instead of throwing and leaving a blank page.
+  _ensureInit(props){
+    if (this.state && this.state.ready) return true;
+    try {
+      const D = window.DATA_MODULE;
+      if (!D) { this._initError = 'DATA_MODULE not loaded (data.js failed to load)'; return false; }
+      this.D = D;
+      this.THEMES = D.THEMES || [];
+      let corrections = {};
+      try { corrections = D.loadCorrections() || {}; } catch(e) { corrections = {}; }
+      try { this.catalog = D.resolveCatalog(corrections); }
+      catch(e) { this.catalog = D.CATALOG; corrections = {}; }
+      if (!this.catalog) { this._initError = 'No catalog (resolveCatalog returned nothing)'; return false; }
+      const seedKey = (props && props.seedState) || (this.props && this.props.seedState) || 'WA';
+      const startKey = this.catalog[seedKey] ? seedKey : Object.keys(this.catalog)[0];
+      if (!startKey) { this._initError = 'Catalog has no states'; return false; }
+      this.state = Object.assign(this.initState(startKey), {
+        ready:true, corrections,
+        savedItineraries:[], savedLoading:false, themeInputs:{}
+      });
+      this._initError = '';
+      return true;
+    } catch(e) {
+      this._initError = (e && e.message) ? e.message : String(e);
+      console.error('[ItineraryBuilder] init failed:', e);
+      return false;
+    }
+  }
 
-  state = this.initState((this.props && this.props.seedState) || 'WA');
+  componentDidMount(){
+    // Re-attempt init in case DATA_MODULE wasn't ready at construction time.
+    if (!this.state.ready) {
+      if (this._ensureInit(this.props)) this.setState(this.state);
+    }
+    if (this.D) {
+      this._onVis = () => { if (document.visibilityState === 'visible') this.syncFromStore(); };
+      this._onStore = (e) => { if (!e.key || e.key === this.D.STORAGE_KEY) this.syncFromStore(); };
+      document.addEventListener('visibilitychange', this._onVis);
+      window.addEventListener('storage', this._onStore);
+    }
+  }
+  componentWillUnmount(){
+    document.removeEventListener('visibilitychange', this._onVis);
+    window.removeEventListener('storage', this._onStore);
+    clearTimeout(this._tt);
+  }
+
+  // Re-read corrections and refresh the catalog. Also remap the PM's current
+  // day list so any tokens they've cleaned in the editor disappear/rename live.
+  syncFromStore(){
+    if (!this.D || !this.state.ready) return;
+    const corr = this.D.loadCorrections();
+    this.catalog = this.D.resolveCatalog(corr);
+    const days = (this.state.days || []).map(d => {
+      const np = [];
+      (d.products || []).forEach(p => this.D.rewriteName(this.state.stateKey, p, corr).forEach(n => { if (!np.includes(n)) np.push(n); }));
+      return Object.assign({}, d, {products: np, customThemes: d.customThemes||[], removedThemes: d.removedThemes||[]});
+    });
+    this.setState({days, corrections: corr});
+  }
 
   initState(key){
-    const s = this.data[key];
-    const days = s.seed.days.map(d => ({location:d.location, city: (s.cities && s.cities[d.products[0]]) || '', desc:d.desc||'', products:[...d.products]}));
-    while (days.length < s.seed.duration) days.push({location:'', city:'', desc:'', products:[]});
-    return { stateKey:key, tourName:s.seed.tourName, duration:s.seed.duration, days, activeDay:0, suggestTab:'popular', researchTab:'market', toast:'', view:'builder', dataFilter:'all', expandedTpl:null };
+    const s = this.catalog[key];
+    const days = s.seed.days.map(d => ({location:d.location, city: (s.cities && s.cities[d.products[0]]) || '', desc:d.desc||'', products:[...d.products], customThemes:[], removedThemes:[]}));
+    while (days.length < s.seed.duration) days.push({location:'', city:'', desc:'', products:[], customThemes:[], removedThemes:[]});
+    return { stateKey:key, tourName:s.seed.tourName, tourUrl:'', duration:s.seed.duration, days, activeDay:0, suggestTab:'popular', suggestSearch:'', researchTab:'market', toast:'', view:'builder', dataFilter:'all', dataSearch:'', dataPage:0, expandedTpl:null };
   }
 
   cityOf(name){ const c=this.cur(); return (c.cities && c.cities[name]) || c.name; }
-
-  cur(){ return this.data[this.state.stateKey]; }
+  cur(){ return this.catalog[this.state.stateKey]; }
   prodInfo(name){ return this.cur().products[name]; }
-  dayThemes(d){ return this.THEMES.filter(t => d.products.some(p => { const x=this.cur().products[p]; return x && x.t.includes(t); })); }
+  dayThemes(d){ const s=new Set(d.themes||[]); (d.products||[]).forEach(p=>{ const x=this.cur().products[p]; if(x) x.t.forEach(t=>s.add(t)); }); return this.THEMES.filter(t => s.has(t)); }
 
   // --- actions ---
   onState = (e) => this.setState(Object.assign(this.initState(e.target.value), {view:this.state.view, dataFilter:this.state.dataFilter, expandedTpl:null}));
-  setView(v){ this.setState({view:v}); }
-  setDataFilter(f){ this.setState({dataFilter:f}); }
+  setView(v){ this.setState({view:v}); if (v==='saved') this.loadSaved(); }
+  setDataFilter(f){ this.setState({dataFilter:f, dataPage:0}); }
+  setDataPage(n){ this.setState({dataPage:n}); }
   toggleTpl(i){ this.setState({expandedTpl: this.state.expandedTpl===i ? null : i}); }
   loadTemplate(i){
     const t = this.cur().templates[i];
-    const days = t.days.map(prods => ({ products:[...prods], city: this.cityOf(prods[0]), location: this.cityOf(prods[0]), desc:'' }));
-    this.setState({ tourName: t.name, duration: days.length, days, activeDay:0, view:'builder', expandedTpl:null });
+    const days = t.days.map(d => ({
+      products: [...(d.places||[])],
+      themes: d.themes || [],
+      city: d.title || this.cityOf((d.places||[])[0]) || '',
+      location: d.title || '',
+      desc: d.desc || '',
+      customThemes: [], removedThemes: []
+    }));
+    this.setState({ tourName: t.name, tourUrl: t.url||'', duration: days.length, days, activeDay:0, view:'builder', expandedTpl:null });
     this.showToast('Loaded template · '+t.name);
   }
   onTourName = (e) => this.setState({tourName: e.target.value});
   setDuration(n){
     n = Math.max(2, Math.min(14, n));
     const days = this.state.days.slice();
-    while (days.length < n) days.push({location:'', desc:'', products:[]});
+    while (days.length < n) days.push({location:'', desc:'', products:[], customThemes:[], removedThemes:[]});
     while (days.length > n) days.pop();
     this.setState({duration:n, days, activeDay: Math.min(this.state.activeDay, n-1)});
   }
   selectDay(i){ this.setState({activeDay:i}); }
   setLocation(i, val){ const days=this.state.days.map((d,k)=> k===i ? {...d, location:val} : d); this.setState({days}); }
+  setDesc(i, val){ const days=this.state.days.map((d,k)=> k===i ? {...d, desc:val} : d); this.setState({days}); }
   toggleProduct(name){
     const i = this.state.activeDay;
     const days = this.state.days.map((d,k)=>{
@@ -459,7 +612,7 @@ class Component extends DCLogic {
   }
   exportCSV = () => {
     const rows = [['Day','Location','Products','Themes']];
-    this.state.days.forEach((d,i)=> rows.push([String(i+1), d.location||'(unplanned)', d.products.join('; '), this.dayThemes(d).join('; ')]));
+    this.state.days.forEach((d,i)=> rows.push([String(i+1), d.location||'(unplanned)', d.products.join('; '), this.dayThemesDisplay(d).join('; ')]));
     const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
     this.download((this.state.tourName||'itinerary')+'.csv', csv, 'text/csv;charset=utf-8;');
     this.showToast('Exported CSV · '+this.state.tourName);
@@ -472,7 +625,7 @@ class Component extends DCLogic {
       body += '<h3 style="font-family:Calibri,Arial">Day '+(i+1)+' — '+(d.location||'Not yet planned')+'</h3>';
       if (d.desc) body += '<p style="font-family:Calibri,Arial">'+d.desc+'</p>';
       if (d.products.length) body += '<p style="font-family:Calibri,Arial"><b>Products:</b> '+d.products.join(', ')+'</p>';
-      const th=this.dayThemes(d); if (th.length) body += '<p style="font-family:Calibri,Arial"><b>Themes:</b> '+th.join(', ')+'</p>';
+      const th=this.dayThemesDisplay(d); if (th.length) body += '<p style="font-family:Calibri,Arial"><b>Themes:</b> '+th.join(', ')+'</p>';
     });
     const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>'+body+'</body></html>';
     this.download((this.state.tourName||'itinerary')+'.doc', html, 'application/msword');
@@ -486,7 +639,8 @@ class Component extends DCLogic {
     const map = {
       prod:{background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #B5D4F4'},
       board:{background:'#FAEEDA',color:'#633806',border:'0.5px solid #FAC775'},
-      theme:{background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97'}
+      theme:{background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97'},
+      flag:{background:'#FBE9E7',color:'#8C2F1E',border:'0.5px dashed #E08A74'}
     };
     const o = Object.assign({}, base, map[kind]);
     if (opts.cursor) o.cursor = opts.cursor;
@@ -494,7 +648,98 @@ class Component extends DCLogic {
     return o;
   }
 
+  // ============ Editable themes ============
+  dayThemesDisplay(d){
+    const auto = this.dayThemes(d).filter(t => !(d.removedThemes||[]).includes(t));
+    const custom = (d.customThemes||[]).filter(t => !auto.includes(t));
+    return [...auto, ...custom];
+  }
+  addCustomTheme(dayIdx, theme){
+    const t = theme.trim(); if (!t) return;
+    const days = this.state.days.map((d,k)=>{
+      if (k!==dayIdx) return d;
+      if (this.dayThemesDisplay(d).includes(t)) return d;
+      return {...d, customThemes:[...(d.customThemes||[]), t]};
+    });
+    this.setState({days});
+  }
+  removeTheme(dayIdx, theme){
+    const days = this.state.days.map((d,k)=>{
+      if (k!==dayIdx) return d;
+      const customThemes = (d.customThemes||[]).filter(t=>t!==theme);
+      const removedThemes = [...new Set([...(d.removedThemes||[]), theme])];
+      return {...d, customThemes, removedThemes};
+    });
+    this.setState({days});
+  }
+  setThemeInput(dayIdx, val){ this.setState({themeInputs:{...this.state.themeInputs, [dayIdx]:val}}); }
+  commitThemeInput(dayIdx){
+    const val = (this.state.themeInputs||{})[dayIdx]||'';
+    this.addCustomTheme(dayIdx, val);
+    this.setThemeInput(dayIdx, '');
+  }
+
+  // ============ Save + Saved Itineraries ============
+  saveItinerary = async () => {
+    const {stateKey, tourName, duration, days} = this.state;
+    const ts = new Date().toISOString().replace(/\D/g,'').slice(0,14);
+    const safeName = (tourName||'Untitled').replace(/[^a-zA-Z0-9]+/g,'_').slice(0,40);
+    const payload = {
+      id: stateKey+'_'+safeName+'_'+ts,
+      name: tourName||'Untitled', state: stateKey, duration,
+      savedAt: new Date().toISOString().slice(0,19),
+      days: days.map(d=>({
+        location: d.location||'', products:[...(d.products||[])],
+        themes: this.dayThemesDisplay(d),
+        customThemes: d.customThemes||[], removedThemes: d.removedThemes||[],
+        desc: d.desc||''
+      }))
+    };
+    try {
+      const r = await fetch('/itineraries', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      if (!r.ok) throw new Error();
+      this.showToast('Itinerary saved \u2014 '+payload.name);
+    } catch(e) { this.showToast('Save failed \u2014 is the server running?'); }
+  };
+  loadSaved = async () => {
+    this.setState({savedLoading:true});
+    try {
+      const data = await (await fetch('/itineraries')).json();
+      this.setState({savedItineraries: Array.isArray(data)?data:[], savedLoading:false});
+    } catch(e) { this.setState({savedLoading:false}); this.showToast('Could not load saved itineraries'); }
+  };
+  loadSavedItinerary(itin){
+    const days = (itin.days||[]).map(d=>({
+      location:d.location||'', city:'', desc:d.desc||'',
+      products:[...(d.products||[])],
+      customThemes:d.customThemes||[], removedThemes:d.removedThemes||[]
+    }));
+    this.setState({stateKey:itin.state, tourName:itin.name, duration:itin.duration, days, activeDay:0, view:'builder'});
+    this.showToast('Loaded \u2014 '+itin.name);
+  }
+  deleteSavedItinerary = async (id) => {
+    try {
+      await fetch('/itineraries/'+encodeURIComponent(id), {method:'DELETE'});
+      this.setState({savedItineraries:this.state.savedItineraries.filter(x=>x.id!==id)});
+      this.showToast('Deleted');
+    } catch(e) { this.showToast('Delete failed'); }
+  };
+
+  onDataSearch = (e)=>this.setState({dataSearch:e.target.value, dataPage:0});
+  onSuggestSearch = (e)=>this.setState({suggestSearch:e.target.value});
+
   renderVals(){
+    if (!this.state.ready || !this.D) {
+      this._ensureInit(this.props);
+    }
+    if (!this.state.ready || !this.D) {
+      return {
+        ready:false, accentTint:'#FBE9E7',
+        distinctProducts:0,
+        topTitle: this._initError ? ('Load error: ' + this._initError) : 'Loading…',
+        topSub: this._initError ? 'Open DevTools console for the full stack trace.' : 'Initialising data…'
+      };
+    }
     const accent = (this.props && this.props.accent) || '#639922';
     const accentTint = '#EAF3DE';
     const c = this.cur();
@@ -503,15 +748,19 @@ class Component extends DCLogic {
     const ad = this.state.activeDay;
     const active = days[ad] || {products:[]};
     const entries = Object.entries(c.products);
+    const corr = this.state.corrections || {};
 
     // metrics
     let productsAdded = 0, boardCount = 0;
     const themeSet = new Set();
-    days.forEach(d => d.products.forEach(p => {
-      productsAdded++;
-      const info = c.products[p];
-      if (info){ if (info.board) boardCount++; info.t.forEach(t=>themeSet.add(t)); }
-    }));
+    days.forEach(d => {
+      d.products.forEach(p => {
+        productsAdded++;
+        const info = c.products[p];
+        if (info){ if (info.board) boardCount++; info.t.forEach(t=>themeSet.add(t)); }
+      });
+      this.dayThemesDisplay(d).forEach(t=>themeSet.add(t));
+    });
     const daysPlanned = days.filter(d=>d.products.length>0).length;
     const boardAlignment = productsAdded ? Math.round(boardCount/productsAdded*100) : 0;
 
@@ -521,16 +770,33 @@ class Component extends DCLogic {
       const isEmpty = d.products.length===0;
       const prodChips = d.products.map(p=>{
         const info = c.products[p];
-        return { label:p, removable:true, title:'Click to remove',
-          style: this.chip(info && info.board ? 'board':'prod', {cursor:'pointer'}),
+        const dirty = info && info.issue;
+        return { label: p + (dirty ? '  ⚠' : ''), removable:true,
+          title: dirty ? 'Flagged by the tagger — clean it in the Token Editor' : 'Click to remove',
+          style: this.chip(dirty ? 'flag' : (info && info.board ? 'board':'prod'), {cursor:'pointer'}),
           onClick: (e)=>{ e.stopPropagation(); this.removeProduct(i, p); } };
       });
-      const themeChips = this.dayThemes(d).map(t=>({ label:t, removable:false, title:'', style:this.chip('theme') }));
+      const themeChips = this.dayThemesDisplay(d).map(t=>({
+        label:t, style:this.chip('theme',{cursor:'default'}),
+        stop:(e)=>e.stopPropagation(),
+        onRemove:(e)=>{ e.stopPropagation(); this.removeTheme(i, t); }
+      }));
+      const descText = (d.desc||'').trim();
+      const themeInput = (this.state.themeInputs||{})[i]||'';
+      const isBlank = !(d.location && String(d.location).trim()) && d.products.length===0;
+      const freeDay = !isBlank && d.products.length===0;
       return {
-        label:'Day '+(i+1), location:d.location, city:d.city, desc:d.desc, hasDesc: !!d.desc,
-        chips:[...prodChips, ...themeChips], hasContent: !isEmpty, isEmpty, isActive,
-        emptyText: isActive ? 'Click a suggestion chip to add products to this day →' : 'Choose products from the suggestion panel →',
-        cardStyle: { background:'#fff', border:'0.5px solid '+(isActive?accent:'#e7e5e4'), borderRadius:'10px', overflow:'hidden', cursor:'pointer', opacity:(isEmpty && !isActive)?0.6:1, transition:'border-color .15s,opacity .15s', boxShadow: isActive?'0 0 0 1px '+accent:'none' },
+        label:'Day '+(i+1), location:d.location, city:d.city,
+        desc: d.desc||'',
+        prodChips, themeChips, hasPlaces: prodChips.length>0,
+        themeInput,
+        onThemeInput:(e)=>{ e.stopPropagation(); this.setThemeInput(i, e.target.value); },
+        onThemeKey:(e)=>{ e.stopPropagation(); if(e.key==='Enter') this.commitThemeInput(i); },
+        onDesc:(e)=>{ e.stopPropagation(); this.setDesc(i, e.target.value); },
+        freeDay, freeText: 'Free day — no specific stops listed. Add places from the suggestions, or check the notes below.',
+        hasContent: !isBlank, isEmpty:isBlank, isActive,
+        emptyText: isActive ? 'Search or click a suggestion to add places to this day →' : 'Choose places from the suggestion panel →',
+        cardStyle: { background:'#fff', border:'0.5px solid '+(isActive?accent:'#e7e5e4'), borderRadius:'10px', overflow:'hidden', cursor:'pointer', opacity:(isBlank && !isActive)?0.6:1, transition:'border-color .15s,opacity .15s', boxShadow: isActive?'0 0 0 1px '+accent:'none' },
         badgeStyle: { borderRadius:'6px', padding:'2px 8px', fontSize:'11px', fontWeight:600, whiteSpace:'nowrap', background:(d.products.length>0?'#EAF3DE':'#f5f5f4'), color:(d.products.length>0?'#27500A':'#a8a29e') },
         onSelect: ()=>this.selectDay(i),
         onLocation: (e)=>this.setLocation(i, e.target.value),
@@ -538,13 +804,16 @@ class Component extends DCLogic {
       };
     });
 
-    // suggestion panel
+    // suggestion panel — never suggest dirty tokens
+    const cleanEntries = entries.filter(e=>!e[1].issue);
     const tab = this.state.suggestTab;
+    const sugQ = (this.state.suggestSearch||'').toLowerCase().trim();
     let list;
-    if (tab==='popular') list = entries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
-    else if (tab==='competitors') list = entries.filter(e=>e[1].op).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
-    else list = entries.filter(e=>e[1].board).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
-    const chipKind = tab==='popular' ? 'prod' : (tab==='competitors' ? 'board' : 'theme');
+    if (sugQ) list = cleanEntries.filter(e=>e[0].toLowerCase().indexOf(sugQ)>=0).sort((a,b)=>b[1].pop-a[1].pop).slice(0,12);
+    else if (tab==='popular') list = cleanEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    else if (tab==='competitors') list = cleanEntries.filter(e=>e[1].op).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    else list = cleanEntries.filter(e=>e[1].board).sort((a,b)=>b[1].pop-a[1].pop).slice(0,6);
+    const chipKind = sugQ ? 'prod' : (tab==='popular' ? 'prod' : (tab==='competitors' ? 'board' : 'theme'));
     const dayOf = {};
     days.forEach((d,di)=> d.products.forEach(p=>{ if (dayOf[p]===undefined) dayOf[p]=di; }));
     const suggestChips = list.map(([name,info])=>{
@@ -564,8 +833,8 @@ class Component extends DCLogic {
     const themeCoverChips = coverThemes.slice(0,5).map(t=>({label:t, style:this.chip('theme')}));
     const pops = list.map(e=>e[1].pop);
     const minP = pops.length?Math.min(...pops):0, maxP = pops.length?Math.max(...pops):0;
-    const suggestLabel = tab==='popular' ? ('Most used in '+c.abbr+' tours') : (tab==='competitors' ? 'Included by competitor operators' : 'Featured by the tourism board');
-    const suggestHint = tab==='popular' ? ('Appearing in '+minP+'–'+maxP+' tours across the dataset') : (tab==='competitors' ? ('Sold by '+minP+'–'+maxP+' competitor operators') : 'The aspirational view — anchor your itinerary here');
+    const suggestLabel = sugQ ? (list.length+' match'+(list.length===1?'':'es')+' for “'+this.state.suggestSearch.trim()+'”') : (tab==='popular' ? ('Most used in '+c.abbr+' tours') : (tab==='competitors' ? 'Included by competitor operators' : 'Featured by the tourism board'));
+    const suggestHint = sugQ ? (list.length ? ('Click any to add to Day '+(ad+1)) : 'No products match — try another spelling') : (tab==='popular' ? ('Appearing in '+minP+'–'+maxP+' tours across the dataset') : (tab==='competitors' ? ('Sold by '+minP+'–'+maxP+' competitor operators') : 'The aspirational view — anchor your itinerary here'));
 
     const mkTab = (key,label)=>({ label, onClick:()=>this.setTab(key),
       style: { flex:1, padding:'7px 4px', fontSize:'11px', fontWeight:600, textAlign:'center', cursor:'pointer', borderBottom:'2px solid '+(this.state.suggestTab===key?accent:'transparent'), color:(this.state.suggestTab===key?'#27500A':'#57534e') } });
@@ -580,28 +849,29 @@ class Component extends DCLogic {
       countStyle:{ fontSize:'10px', minWidth:'22px', textAlign:'right', color: x.c===0?'#E24B4A':'#a8a29e', fontWeight: x.c===0?600:400 }
     }));
 
-    // research — market
-    const sorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop);
+    // research — market (clean products only)
+    const sorted = cleanEntries.slice().sort((a,b)=>b[1].pop-a[1].pop);
     const top = sorted.slice(0,6);
     const maxPop = top.length?top[0][1].pop:1;
     const marketBars = top.map(([name,info])=>({ label:name, count:info.pop,
       fillStyle:{ height:'6px', borderRadius:'3px', background:'#378ADD', width:Math.round(info.pop/maxPop*100)+'%' } }));
 
-    // research — gap buckets
+    // research — gap buckets (clean products only)
     const addChip = (name, kind)=>({ label:name, style:this.chip(kind,{cursor:'pointer'}), onClick:()=>this.toggleProduct(name) });
-    const gapBoardOnly = entries.filter(e=>e[1].board && !e[1].op).map(e=>addChip(e[0],'board'));
-    const gapBoth = entries.filter(e=>e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'prod'));
-    const gapOperator = entries.filter(e=>!e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'theme'));
+    const gapBoardOnly = cleanEntries.filter(e=>e[1].board && !e[1].op).map(e=>addChip(e[0],'board'));
+    const gapBoth = cleanEntries.filter(e=>e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'prod'));
+    const gapOperator = cleanEntries.filter(e=>!e[1].board && e[1].op).sort((a,b)=>b[1].pop-a[1].pop).map(e=>addChip(e[0],'theme'));
     const gapStats = { boardOnly:gapBoardOnly.length, both:gapBoth.length, operator:gapOperator.length };
 
-    // --- Product insights (full view) ---
+    // --- Product insights (full view, includes dirty tokens with a warning badge) ---
     const allSorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop);
     const maxAll = allSorted.length ? allSorted[0][1].pop : 1;
+    const flagBadge = Object.assign(this.chip('flag'), {fontSize:'10px',padding:'1px 7px'});
     const allProducts = allSorted.map(([name,info])=>({
       label:name, count:info.pop,
-      badge: info.board ? (info.op?'Both':'Board only') : 'Operators',
-      badgeStyle: Object.assign(this.chip(info.board?(info.op?'prod':'board'):'theme'), {fontSize:'10px',padding:'1px 7px'}),
-      fillStyle:{ height:'7px', borderRadius:'4px', background:'#378ADD', width:Math.round(info.pop/maxAll*100)+'%' }
+      badge: info.issue ? 'Needs cleanup' : (info.board ? (info.op?'Both':'Board only') : 'Operators'),
+      badgeStyle: info.issue ? flagBadge : Object.assign(this.chip(info.board?(info.op?'prod':'board'):'theme'), {fontSize:'10px',padding:'1px 7px'}),
+      fillStyle:{ height:'7px', borderRadius:'4px', background: info.issue?'#D98A74':'#378ADD', width:Math.round(info.pop/maxAll*100)+'%' }
     }));
     const themePop = themes.map(t=>{ let sum=0; entries.forEach(([n,info])=>{ if(info.t.includes(t)) sum+=info.pop; }); return {t,sum}; });
     const maxTheme = Math.max(1, ...themePop.map(x=>x.sum));
@@ -610,14 +880,40 @@ class Component extends DCLogic {
       fillStyle:{ height:'7px', borderRadius:'4px', background:'#639922', width:Math.round(x.sum/maxTheme*100)+'%' }
     }));
 
-    // --- Tagged data (full view) ---
+    // --- Tagged data (full scraped dataset) — every real day-level row ---
+    // The transparent day-level asset: one row per scraped day with the
+    // engine's extracted products/themes. Searchable, filterable, paged so
+    // it replaces opening the source Excel for review.
+    const dataRows = c.allRows || [];
     const df = this.state.dataFilter || 'all';
-    const rawSample = c.taggedSample || [];
-    const taggedRows = rawSample.filter(r=> df==='all' || (df==='board'&&r.type==='Board') || (df==='comp'&&r.type==='Competitor')).map((r,i)=>({
+    const dq = (this.state.dataSearch||'').toLowerCase().trim();
+    const dataFiltered = dataRows.filter(r=>{
+      if (df==='board' && r.type!=='Board') return false;
+      if (df==='comp'  && r.type!=='Competitor') return false;
+      if (dq){
+        const hay = (r.tour+' '+r.source+' '+r.city+' '+r.location+' '+r.products+' '+r.themes).toLowerCase();
+        if (hay.indexOf(dq)<0) return false;
+      }
+      return true;
+    });
+    const DATA_PAGE = 50;
+    const dataTotal = dataFiltered.length;
+    const dataPageCount = Math.max(1, Math.ceil(dataTotal/DATA_PAGE));
+    const dataPage = Math.min(this.state.dataPage||0, dataPageCount-1);
+    const dataStart = dataPage*DATA_PAGE;
+    const dataSlice = dataFiltered.slice(dataStart, dataStart+DATA_PAGE);
+    const taggedRows = dataSlice.map((r,i)=>({
       tour:r.tour, source:r.source, type:r.type, day:r.day, city:r.city, location:r.location, products:r.products, themes:r.themes,
-      rowStyle:{ background: i%2 ? '#fafaf9' : '#fff' },
+      hasUrl: !!r.url, url: r.url||'',
+      rowStyle:{ background: (i%2 ? '#fafaf9' : '#fff') },
+      productStyle: {color:'#0C447C',fontWeight:600},
       typeStyle: Object.assign(this.chip(r.type==='Board'?'board':'prod'), {fontSize:'10px',padding:'1px 7px'})
     }));
+    const dataCountText = dataTotal ? ('Showing '+(dataStart+1)+'–'+(dataStart+dataSlice.length)+' of '+dataTotal+' rows') : 'No rows match';
+    const dataPageText = 'Page '+(dataPage+1)+' of '+dataPageCount;
+    const dPagerStyle = (enabled)=>({ padding:'5px 11px', fontSize:'12px', fontWeight:600, borderRadius:'6px', border:'0.5px solid #d6d3d1', background:(enabled?'#fff':'#f5f5f4'), color:(enabled?'#1c1917':'#cbc9c6'), cursor:(enabled?'pointer':'not-allowed') });
+    const dataPrev = { label:'‹ Prev', style:dPagerStyle(dataPage>0),               onClick: dataPage>0 ? ()=>this.setDataPage(dataPage-1) : ()=>{} };
+    const dataNext = { label:'Next ›', style:dPagerStyle(dataPage<dataPageCount-1), onClick: dataPage<dataPageCount-1 ? ()=>this.setDataPage(dataPage+1) : ()=>{} };
     const dataFilters = [['all','All sources'],['board','Board'],['comp','Competitor']].map(([k,l])=>({
       label:l, onClick:()=>this.setDataFilter(k),
       style:{ padding:'5px 11px', fontSize:'11px', fontWeight:600, borderRadius:'6px', cursor:'pointer', border:'0.5px solid '+(df===k?'#C0DD97':'#d6d3d1'), background:(df===k?'#EAF3DE':'#fff'), color:(df===k?'#27500A':'#57534e') }
@@ -628,15 +924,18 @@ class Component extends DCLogic {
     const topPop = Math.max(...c.templates.map(t=>t.pop));
     const templateCards = c.templates.map((t,i)=>{
       const dur = t.days.length;
-      let prodCount = 0; const tThemes = new Set(); const route = [];
-      t.days.forEach(prods=>{
-        prods.forEach(p=>{ prodCount++; const info=c.products[p]; if(info) info.t.forEach(x=>tThemes.add(x)); });
-        const cy = this.cityOf(prods[0]); if (route[route.length-1]!==cy) route.push(cy);
+      let prodCount = 0; const tThemes = new Set(t.themes||[]); const route = [];
+      t.days.forEach(d=>{
+        const places = d.places||[];
+        places.forEach(p=>{ prodCount++; const info=c.products[p]; if(info) info.t.forEach(x=>tThemes.add(x)); });
+        (d.themes||[]).forEach(x=>tThemes.add(x));
+        const cy = d.title || this.cityOf(places[0]); if (cy && route[route.length-1]!==cy) route.push(cy);
       });
       const expanded = this.state.expandedTpl===i;
-      const dayList = t.days.map((prods,di)=>({ label:'Day '+(di+1), city:this.cityOf(prods[0]), products:prods.join(', ') }));
+      const dayList = t.days.map((d,di)=>({ label:'Day '+(di+1), city:(d.title||this.cityOf((d.places||[])[0])||''), products:((d.places||[]).length? (d.places).join(', ') : 'Free day — no specific stops listed') }));
       return {
         name:t.name, source:t.source, type:t.type, pop:t.pop, dur, prodCount, themeCount:tThemes.size,
+        url:t.url||'', hasUrl:!!t.url,
         route: route.join('  \u2192  '),
         isTop: t.pop===topPop,
         typeStyle: Object.assign(this.chip(t.type==='Board'?'board':'prod'), {fontSize:'10px',padding:'1px 8px'}),
@@ -648,6 +947,19 @@ class Component extends DCLogic {
       };
     });
 
+    // --- Saved itineraries ---
+    const savedCards = (this.state.savedItineraries||[]).slice().reverse().map(sv=>{
+      const allThemes = new Set();
+      (sv.days||[]).forEach(d=>(d.themes||[]).forEach(t=>allThemes.add(t)));
+      return {
+        name:sv.name, state:sv.state, duration:sv.duration,
+        savedAt:(sv.savedAt||'').slice(0,10),
+        themeChips:[...allThemes].slice(0,6).map(t=>({label:t, style:Object.assign(this.chip('theme'),{fontSize:'10px',padding:'1px 7px'})})),
+        onLoad:()=>this.loadSavedItinerary(sv),
+        onDelete:()=>this.deleteSavedItinerary(sv.id)
+      };
+    });
+
     // --- nav + topbar ---
     const view = this.state.view || 'builder';
     const navStyle = (k)=>Object.assign({display:'flex',alignItems:'center',gap:'8px',padding:'7px 9px',borderRadius:'6px',fontSize:'12px',cursor:'pointer',transition:'background .12s'}, view===k?{background:'#EAF3DE',color:'#27500A',fontWeight:600}:{color:'#57534e'});
@@ -656,7 +968,8 @@ class Component extends DCLogic {
       templates:['Itinerary templates','Start from a real scraped tour, then edit it in the builder'],
       insights:['Product insights','What dominates the market — products ranked by tour count'],
       gap:['Board vs operators','Where the aspirational and commercial views diverge'],
-      data:['Tagged data','The structured day-level asset behind every suggestion']
+      data:['Tagged data','The structured day-level asset behind every suggestion'],
+      saved:['Saved Itineraries','Your saved tour designs \u2014 load into the builder to continue editing']
     };
 
     const rTab = (key,label)=>({ label, onClick:()=>this.setResearch(key),
@@ -664,10 +977,11 @@ class Component extends DCLogic {
     const researchTabs = [rTab('market','Market data'), rTab('gap','Board vs operators')];
 
     return {
-      accentTint,
+      ready:true,
+      accentTint, distinctProducts: cleanEntries.length,
       stateKey:this.state.stateKey, stateAbbr:c.abbr, stateName:c.name, tourName:this.state.tourName,
       duration:this.state.duration, activeDayNum: ad+1,
-      stateOptions: Object.keys(this.data).map(k=>({key:k, name:this.data[k].name})),
+      stateOptions: Object.keys(this.catalog).map(k=>({key:k, name:this.catalog[k].name})),
       onState:this.onState, onTourName:this.onTourName,
       inc:()=>this.setDuration(this.state.duration+1), dec:()=>this.setDuration(this.state.duration-1),
       daysPlanned, productsAdded, themesCovered: themeSet.size, boardAlignment,
@@ -676,12 +990,18 @@ class Component extends DCLogic {
       coverageBars, marketBars, gapBoardOnly, gapBoth, gapOperator,
       researchTabs, showMarket:this.state.researchTab==='market', showGap:this.state.researchTab==='gap',
       goMarket:()=>this.setResearch('market'), goGap:()=>this.setResearch('gap'),
-      view, showBuilder:view==='builder', showTemplates:view==='templates', showInsights:view==='insights', showGapView:view==='gap', showData:view==='data',
-      topTitle:titles[view][0], topSub:titles[view][1],
-      navBuilderStyle:navStyle('builder'), navTemplatesStyle:navStyle('templates'), navInsightsStyle:navStyle('insights'), navGapStyle:navStyle('gap'), navDataStyle:navStyle('data'),
-      navBuilder:()=>this.setView('builder'), navTemplates:()=>this.setView('templates'), navInsights:()=>this.setView('insights'), navGap:()=>this.setView('gap'), navData:()=>this.setView('data'),
+      view, showBuilder:view==='builder', showTemplates:view==='templates', showInsights:view==='insights', showGapView:view==='gap', showData:view==='data', showSaved:view==='saved',
+      topTitle:(titles[view]||titles.builder)[0], topSub:(titles[view]||titles.builder)[1],
+      navBuilderStyle:navStyle('builder'), navTemplatesStyle:navStyle('templates'), navInsightsStyle:navStyle('insights'), navGapStyle:navStyle('gap'), navDataStyle:navStyle('data'), navSavedStyle:navStyle('saved'),
+      navBuilder:()=>this.setView('builder'), navTemplates:()=>this.setView('templates'), navInsights:()=>this.setView('insights'), navGap:()=>this.setView('gap'), navData:()=>this.setView('data'), navSaved:()=>this.setView('saved'),
+      saveItinerary:this.saveItinerary,
+      savedCards, savedLoading:this.state.savedLoading||false, savedEmpty:!this.state.savedLoading&&(this.state.savedItineraries||[]).length===0,
       templateCards,
       gapStats, allProducts, themePopBars, taggedRows, dataFilters,
+      dataSearch:this.state.dataSearch||'', onDataSearch:this.onDataSearch,
+      dataCountText, dataPageText, dataPrev, dataNext,
+      tourUrl:this.state.tourUrl||'', hasTourUrl:!!this.state.tourUrl,
+      suggestSearch:this.state.suggestSearch||'', onSuggestSearch:this.onSuggestSearch,
       exportCSV:this.exportCSV, exportWord:this.exportWord, toast:this.state.toast
     };
   }

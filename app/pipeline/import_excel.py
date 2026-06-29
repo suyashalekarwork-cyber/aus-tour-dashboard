@@ -17,12 +17,12 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 BASE             = Path(__file__).parent          # the "pipeline" folder
-ROOT             = BASE.parent                     # the "Build and explore" folder
-DEFAULT_XLSX     = ROOT / 'data' / 'Token_Review.xlsx'
-CORRECTIONS_PATH = ROOT / 'data' / 'token_corrections.json'
-BACKUPS_DIR      = ROOT / 'data' / 'corrections_history'
+ROOT             = BASE.parent                     # the app/ folder
+DEFAULT_XLSX     = ROOT / 'frontend' / 'Token_Review.xlsx'
+CORRECTIONS_PATH = ROOT / 'frontend' / 'token_corrections.json'
+BACKUPS_DIR      = ROOT / 'frontend' / 'corrections_history'
 PREPARE_SCRIPT   = BASE / 'prepare_data.py'
-SHEET_NAME       = 'Tokens to review'
+SHEET_NAME       = 'Needs Review'
 
 
 def load_existing():
@@ -56,9 +56,13 @@ def read_sheet(xlsx_path):
                 return headers[n]
         sys.exit(f'ERROR: could not find a column for {names} in the sheet header.')
 
-    c_token = col('token')
+    c_token  = col('place name', 'token')
     c_action = col('action')
-    c_corr = col('corrected name(s)', 'corrected name', 'corrected')
+    c_corr   = col('correct name', 'corrected name(s)', 'corrected name', 'corrected')
+    # Suggestion column is a fallback: if PM left Correct name blank but kept action=rename,
+    # use the pre-filled suggestion so they don't have to copy it manually.
+    c_suggest_header = 'suggestion (reference only — do not edit)'
+    c_suggest = headers.get(c_suggest_header) or headers.get('suggestion (pre-filled)') or None
 
     rows = []
     for r in range(2, ws.max_row + 1):
@@ -66,8 +70,12 @@ def read_sheet(xlsx_path):
         if not token:
             continue
         action = (ws.cell(row=r, column=c_action).value or '').strip().lower()
-        corrected = (ws.cell(row=r, column=c_corr).value or '')
-        corrected = str(corrected).strip()
+        corrected = str(ws.cell(row=r, column=c_corr).value or '').strip()
+        # If PM left Correct name blank, fall back to the pre-filled Suggestion value
+        if not corrected and c_suggest:
+            suggestion = str(ws.cell(row=r, column=c_suggest).value or '').strip()
+            if suggestion and suggestion != '—':
+                corrected = suggestion
         rows.append((str(token).strip(), action, corrected))
     return rows
 
@@ -121,7 +129,7 @@ def main():
         ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         backup = BACKUPS_DIR / f'token_corrections_{ts}_from_excel.json'
         backup.write_text(CORRECTIONS_PATH.read_text(encoding='utf-8'), encoding='utf-8')
-        print(f'Backed up previous corrections → {backup.name}')
+        print(f'Backed up previous corrections -> {backup.name}')
 
     with open(CORRECTIONS_PATH, 'w', encoding='utf-8') as f:
         json.dump(corr, f, ensure_ascii=False, indent=2)

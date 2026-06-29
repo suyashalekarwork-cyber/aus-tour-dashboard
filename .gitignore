@@ -11,7 +11,6 @@ webscraping/
 
 # Generated outputs
 analysis/*.xlsx
-analysis/itineraries_for_manager.xlsx
 
 # Excel files (reviews, datasets, outputs) — not version-controlled
 *.xlsx
@@ -37,11 +36,34 @@ corrections_history/
 Thumbs.db
 .thumbnail
 
-# Build and explore — generated data + large binary
-**/cloudflared.exe
-Build and explore/app/data.js
-Build and explore/app/tokens.js
-Build and explore/data/corrections_history/
-Build and explore/data/uploads/
-Build and explore New/data.js
-Build and explore New/uploads/
+# App — archive (review before deleting)
+_archive/
+
+# App frontend — generated data + runtime files
+app/frontend/catalog.js
+app/frontend/data.js
+app/frontend/tokens.js
+app/frontend/recovered_data.js
+app/frontend/uploads/
+app/frontend/corrections_history/
+app/frontend/token_corrections.json
+app/frontend/saved_itineraries.json
+
+# App server — binaries + secrets
+app/server/cloudflared.exe
+gemini_apikey.txt
+
+# Misc local files
+MEMORY.md
+Gemini_Noteboolm/
+Obsidian/
+Plan/
+alltheplaces.xyz/
+alltheplaces.xyz.zip
+extraction_test/
+resources/
+*.pdf
+data/gazetteer/
+data/gemini_chunks/
+data/gemini_classification_input.txt
+data/reference/

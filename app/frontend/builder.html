@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour Builder</title>
+<script src="./react.production.min.js"></script>
+<script src="./react-dom.production.min.js"></script>
+<script src="./babel.min.js"></script>
+<script src="./tokens.js"></script>
+<script src="./data.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f0efed;font-family:'Helvetica Neue',Helvetica,'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;color:#1c1917}
+  input,select,button{font-family:inherit}
+  input:focus,select:focus{outline:1px solid #97C459}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#d6d3d1;border-radius:5px}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="root" style="padding:0;display:flex"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+const ACCENT  = '#1D9E75';
+const GREEN   = '#639922';
+const TINT    = '#EAF3DE';
+
+// ---- chip styling (returns a style object) ----
+function chip(kind, opts){
+  opts = opts || {};
+  const base = {display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'99px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'};
+  const map = {
+    prod:  {background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #B5D4F4'},
+    board: {background:'#FAEEDA',color:'#633806',border:'0.5px solid #FAC775'},
+    theme: {background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97'},
+    flag:  {background:'#FBE9E7',color:'#8C2F1E',border:'0.5px dashed #E08A74'}
+  };
+  const o = Object.assign({}, base, map[kind]||map.prod);
+  if (opts.cursor) o.cursor = opts.cursor;
+  if (opts.faded)  o.opacity = 0.55;
+  if (opts.small)  { o.fontSize='10px'; o.padding='1px 7px'; }
+  return o;
+}
+
+// ---- small UI atoms ----
+const Card = ({children, style}) => <div style={Object.assign({background:'#f5f5f4',borderRadius:'6px',padding:'9px 12px'}, style)}>{children}</div>;
+const Label = ({children}) => <div style={{fontSize:'10px',color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'3px'}}>{children}</div>;
+const Bar = ({pct, color}) => <div style={{flex:1,height:'6px',background:'#eee',borderRadius:'3px',overflow:'hidden'}}><div style={{height:'100%',borderRadius:'3px',background:color||'#378ADD',width:(pct||0)+'%',transition:'width .3s'}}/></div>;
+
+function App(){
+  const D = window.DATA_MODULE;
+  const [err, setErr] = useState('');
+  const [corrections, setCorrections] = useState(()=>{ try { return D.loadCorrections()||{}; } catch(e){ return {}; } });
+  const catalog = useMemo(()=>{
+    try { return D.resolveCatalog(corrections); }
+    catch(e){ return D.CATALOG; }
+  }, [corrections]);
+  const THEMES = D.THEMES || [];
+
+  const stateKeys = Object.keys(catalog);
+  const [view, setView]       = useState('builder');
+  const [stateKey, setStateKey] = useState(stateKeys[0] || 'WA');
+  const cur = catalog[stateKey] || {products:{},templates:[],allRows:[],cities:{},name:stateKey,abbr:stateKey,seed:{tourName:'',duration:5,days:[]}};
+
+  const [tourName, setTourName] = useState('');
+  const [tourUrl, setTourUrl]   = useState('');
+  const [tourSource, setTourSource] = useState('');
+  const [duration, setDuration] = useState(5);
+  const [days, setDays]         = useState([]);
+  const [activeDay, setActiveDay] = useState(0);
+
+  const [suggestTab, setSuggestTab] = useState('popular');
+  const [suggestSearch, setSuggestSearch] = useState('');
+  const [themeInputs, setThemeInputs] = useState({});
+
+  const [tplStateKey, setTplStateKey] = useState(stateKeys[0] || 'WA');
+  const [tplSourceFilter, setTplSourceFilter] = useState('all');
+  const [tplCityFilter, setTplCityFilter]   = useState('');
+  const [tplThemeFilter, setTplThemeFilter] = useState('');
+  const [tplSearch, setTplSearch]           = useState('');
+
+  // derived filter options — must live at App level (no hooks inside render fns)
+  const tplCur = catalog[tplStateKey] || cur;
+  const allTpls = tplCur.templates || [];
+  const tplCityOptions = useMemo(()=>{
+    const s=new Set();
+    allTpls.forEach(t=>(t.days||[]).forEach(d=>{ const cy=d.title||(d.places&&d.places[0]&&tplCur.cities&&tplCur.cities[d.places[0]])||''; if(cy) s.add(cy); }));
+    return [...s].sort();
+  }, [tplStateKey]);
+  const tplThemeOptions = useMemo(()=>{
+    const s=new Set();
+    allTpls.forEach(t=>{ (t.themes||[]).forEach(x=>s.add(x)); (t.days||[]).forEach(d=>{ (d.themes||[]).forEach(x=>s.add(x)); (d.places||[]).forEach(p=>{ const info=tplCur.products[p]; if(info)(info.t||[]).forEach(x=>s.add(x)); }); }); });
+    return [...s].sort();
+  }, [tplStateKey]);
+  const tplSourceOptions = useMemo(()=>{
+    const s=new Set(); allTpls.forEach(t=>{ if(t.source) s.add(t.source); }); return [...s].sort();
+  }, [tplStateKey]);
+  const tplsFiltered = useMemo(()=>{
+    const q=(tplSearch||'').toLowerCase().trim();
+    return allTpls.filter(t=>{
+      if(tplSourceFilter==='Competitor'&&t.type!=='Competitor') return false;
+      if(tplSourceFilter==='Board'&&t.type!=='Board') return false;
+      if(tplCityFilter){
+        const inRoute=(t.days||[]).some(d=>{ const cy=d.title||(d.places&&d.places[0]&&tplCur.cities&&tplCur.cities[d.places[0]])||''; return cy===tplCityFilter; });
+        if(!inRoute) return false;
+      }
+      if(tplThemeFilter){
+        const allT=new Set(t.themes||[]);
+        (t.days||[]).forEach(d=>{ (d.themes||[]).forEach(x=>allT.add(x)); (d.places||[]).forEach(p=>{ const info=tplCur.products[p]; if(info)(info.t||[]).forEach(x=>allT.add(x)); }); });
+        if(!allT.has(tplThemeFilter)) return false;
+      }
+      if(q){ const hay=(t.name+' '+(t.source||'')+' '+(t.desc||'')).toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    });
+  }, [allTpls, tplSourceFilter, tplCityFilter, tplThemeFilter, tplSearch, tplStateKey]);
+
+  const [dataFilter, setDataFilter] = useState('all');
+  const [dataSearch, setDataSearch] = useState('');
+  const [dataPage, setDataPage]     = useState(0);
+  const [expandedTpl, setExpandedTpl] = useState(null);
+
+  const [saved, setSaved]       = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [toast, setToast]       = useState('');
+  const toastTimer = useRef(null);
+
+  // ---- helpers ----
+  const cityOf = (name) => (cur.cities && cur.cities[name]) || cur.name;
+  const blankDay = () => ({location:'',city:'',desc:'',products:[],customThemes:[],removedThemes:[]});
+
+  function seedDays(c){
+    const s = c.seed || {tourName:'',duration:5,days:[]};
+    const d = (s.days||[]).map(x => ({
+      location:x.location||'', city:(c.cities && c.cities[(x.products||[])[0]])||'',
+      desc:x.desc||'', products:[...(x.products||[])], customThemes:[], removedThemes:[]
+    }));
+    while (d.length < (s.duration||5)) d.push(blankDay());
+    return {days:d, dur:(s.duration||5), name:s.tourName||''};
+  }
+
+  // initialise / reset when state changes
+  useEffect(()=>{
+    const {days:d, dur, name} = seedDays(cur);
+    setDays(d); setDuration(dur); setTourName(name); setTourUrl(''); setActiveDay(0); setExpandedTpl(null);
+  // eslint-disable-next-line
+  }, [stateKey]);
+
+  // re-sync corrections when tab regains focus (token editor edits reflect live)
+  useEffect(()=>{
+    const onVis = ()=>{ if (document.visibilityState==='visible'){ try{ setCorrections(D.loadCorrections()||{}); }catch(e){} } };
+    const onStore = (e)=>{ if(!e.key || e.key===D.STORAGE_KEY){ try{ setCorrections(D.loadCorrections()||{}); }catch(e){} } };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('storage', onStore);
+    return ()=>{ document.removeEventListener('visibilitychange', onVis); window.removeEventListener('storage', onStore); };
+  }, []);
+
+  function showToast(msg){ setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(''),2600); }
+
+  function dayThemesAuto(d){
+    const s = new Set();
+    (d.products||[]).forEach(p=>{ const x=cur.products[p]; if(x&&x.t) x.t.forEach(t=>s.add(t)); });
+    return THEMES.filter(t=>s.has(t));
+  }
+  function dayThemesDisplay(d){
+    const auto = dayThemesAuto(d).filter(t=>!(d.removedThemes||[]).includes(t));
+    const custom = (d.customThemes||[]).filter(t=>!auto.includes(t));
+    return [...auto, ...custom];
+  }
+
+  // ---- day actions ----
+  const setDur = (n)=>{
+    n = Math.max(2, Math.min(14, n));
+    setDays(prev=>{ const a=prev.slice(); while(a.length<n)a.push(blankDay()); while(a.length>n)a.pop(); return a; });
+    setDuration(n); setActiveDay(a=>Math.min(a,n-1));
+  };
+  const setLocation = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,location:val}:d));
+  const setDesc     = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,desc:val}:d));
+  const toggleProduct = (name)=> setDays(prev=>prev.map((d,k)=>{
+    if(k!==activeDay) return d;
+    const has=d.products.includes(name);
+    return {...d, products: has? d.products.filter(p=>p!==name):[...d.products,name]};
+  }));
+  const removeProduct = (i,name)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,products:d.products.filter(p=>p!==name)}:d));
+  const addCustomTheme = (i,theme)=>{ const t=(theme||'').trim(); if(!t) return; setDays(prev=>prev.map((d,k)=>{
+    if(k!==i) return d; if(dayThemesDisplay(d).includes(t)) return d; return {...d, customThemes:[...(d.customThemes||[]),t]};
+  })); };
+  const removeTheme = (i,theme)=> setDays(prev=>prev.map((d,k)=>{
+    if(k!==i) return d;
+    return {...d, customThemes:(d.customThemes||[]).filter(t=>t!==theme), removedThemes:[...new Set([...(d.removedThemes||[]),theme])]};
+  }));
+
+  // ---- templates ----
+  function loadTemplate(t){
+    const d = (t.days||[]).map(x=>({
+      location: x.title||'', city: x.title||cityOf((x.places||[])[0])||'', desc:x.desc||'',
+      products:[...(x.places||[])], customThemes:[], removedThemes:[]
+    }));
+    const targetState = t.state || tplStateKey;
+    // Always set view first, then use setTimeout so the seed-reset effect
+    // (triggered by setStateKey or initial mount) never wins over our data.
+    setView('builder');
+    setStateKey(targetState);
+    setTimeout(()=>{ setTourName(t.name||''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); }, 0);
+    showToast('Loaded template · '+(t.name||''));
+  }
+
+  // ---- saved itineraries (server API) ----
+  async function loadSaved(){
+    setSavedLoading(true);
+    try { const data = await (await fetch('/itineraries')).json(); setSaved(Array.isArray(data)?data:[]); }
+    catch(e){ showToast('Could not load saved itineraries'); }
+    setSavedLoading(false);
+  }
+  async function saveItinerary(){
+    const ts = new Date().toISOString().replace(/\D/g,'').slice(0,14);
+    const safe = (tourName||'Untitled').replace(/[^a-zA-Z0-9]+/g,'_').slice(0,40);
+    const payload = {
+      id: stateKey+'_'+safe+'_'+ts, name: tourName||'Untitled', state: stateKey, duration,
+      savedAt: new Date().toISOString().slice(0,19),
+      days: days.map(d=>({location:d.location||'', products:[...(d.products||[])], themes:dayThemesDisplay(d), customThemes:d.customThemes||[], removedThemes:d.removedThemes||[], desc:d.desc||''}))
+    };
+    try { const r = await fetch('/itineraries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok) throw new Error(); showToast('Itinerary saved — '+payload.name); }
+    catch(e){ showToast('Save failed — is the server running?'); }
+  }
+  function loadSavedItinerary(itin){
+    const d = (itin.days||[]).map(x=>({location:x.location||'',city:'',desc:x.desc||'',products:[...(x.products||[])],customThemes:x.customThemes||[],removedThemes:x.removedThemes||[]}));
+    setStateKey(itin.state);
+    // setStateKey triggers seed reset effect; override on next tick
+    setTimeout(()=>{ setTourName(itin.name); setDuration(itin.duration); setDays(d); setActiveDay(0); }, 0);
+    setView('builder'); showToast('Loaded — '+itin.name);
+  }
+  async function deleteSaved(id){
+    try { await fetch('/itineraries/'+encodeURIComponent(id),{method:'DELETE'}); setSaved(s=>s.filter(x=>x.id!==id)); showToast('Deleted'); }
+    catch(e){ showToast('Delete failed'); }
+  }
+  useEffect(()=>{ if(view==='saved') loadSaved(); /* eslint-disable-next-line */ }, [view]);
+
+  // ---- export ----
+  function download(filename, content, mime){
+    const blob=new Blob([content],{type:mime}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function exportWord(){
+    let body = '<h1 style="font-family:Calibri,Arial">'+(tourName||'Itinerary')+'</h1>';
+    body += '<p style="font-family:Calibri,Arial;color:#555">'+cur.name+' · '+duration+' days</p>';
+    days.forEach((d,i)=>{
+      body+='<h3 style="font-family:Calibri,Arial">Day '+(i+1)+' — '+(d.location||'Not yet planned')+'</h3>';
+      if(d.desc) body+='<p style="font-family:Calibri,Arial">'+d.desc+'</p>';
+      if(d.products.length) body+='<p style="font-family:Calibri,Arial"><b>Products:</b> '+d.products.join(', ')+'</p>';
+      const th=dayThemesDisplay(d); if(th.length) body+='<p style="font-family:Calibri,Arial"><b>Themes:</b> '+th.join(', ')+'</p>';
+    });
+    const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>'+body+'</body></html>';
+    download((tourName||'itinerary')+'.doc', html, 'application/msword');
+    showToast('Exported Word doc · '+(tourName||'itinerary'));
+  }
+
+  // ---- derived metrics ----
+  const entries = Object.entries(cur.products||{});
+  const cleanEntries = entries.filter(e=>!e[1].issue);
+  const distinctProducts = cleanEntries.length;
+  const totalRows = (cur.allRows||[]).length;
+  const totalTours = new Set((cur.allRows||[]).map(r=>r.tour)).size;
+
+  let productsAdded=0, boardCount=0; const themeSet=new Set();
+  days.forEach(d=>{ d.products.forEach(p=>{ productsAdded++; const info=cur.products[p]; if(info){ if(info.board)boardCount++; (info.t||[]).forEach(t=>themeSet.add(t)); } });
+    dayThemesDisplay(d).forEach(t=>themeSet.add(t)); });
+  const daysPlanned = days.filter(d=>d.products.length>0).length;
+  const boardAlignment = productsAdded? Math.round(boardCount/productsAdded*100):0;
+
+  const titles = {
+    builder:['Itinerary builder','Design your tour day by day — suggestions drawn from market data'],
+    templates:['Itinerary templates','Start from a real scraped tour, then edit it in the builder'],
+    insights:['Product insights','What dominates the market — products ranked by tour count'],
+    gap:['Board vs operators','Where the aspirational and commercial views diverge'],
+    data:['Tagged data','The structured day-level asset behind every suggestion'],
+    saved:['Saved itineraries','Your saved tour designs — load into the builder to continue editing']
+  };
+  const [topTitle, topSub] = titles[view] || titles.builder;
+
+  // ---- nav ----
+  const NAV = [
+    ['builder','Itinerary builder'],['templates','Itinerary templates'],['insights','Product insights'],
+    ['gap','Board vs operators'],['data','Tagged data'],['saved','Saved itineraries']
+  ];
+  const navStyle = (k)=> Object.assign(
+    {display:'flex',alignItems:'center',gap:'8px',padding:'7px 9px',borderRadius:'6px',fontSize:'12px',cursor:'pointer',transition:'background .12s'},
+    view===k ? {background:TINT,color:'#27500A',fontWeight:600} : {color:'#57534e'}
+  );
+
+  // ============ render helpers per view ============
+  function _builderShared(){
+    const active = days[activeDay] || {products:[]};
+    const sugQ = (suggestSearch||'').toLowerCase().trim();
+    let list;
+    if (sugQ) list = cleanEntries.filter(e=>e[0].toLowerCase().includes(sugQ)).sort((a,b)=>b[1].pop-a[1].pop).slice(0,12);
+    else if (suggestTab==='popular') list = cleanEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,8);
+    else list = cleanEntries.filter(e=>e[1].board).sort((a,b)=>b[1].pop-a[1].pop).slice(0,12);
+    const chipKind = suggestTab==='board'?'board':'prod';
+    return {active, list, chipKind};
+  }
+  function renderBuilder(){ return null; }
+  function renderBuilderDays(){
+    const {active} = _builderShared();
+    const dayOf={}; days.forEach((d,di)=>d.products.forEach(p=>{ if(dayOf[p]===undefined) dayOf[p]=di; }));
+
+    return (
+    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {days.map((d,i)=>{
+            const isActive=i===activeDay; const isBlank=!(d.location&&d.location.trim())&&d.products.length===0;
+            return (
+            <div key={i} onClick={()=>setActiveDay(i)} style={{background:'#fff',border:'0.5px solid '+(isActive?GREEN:'#e7e5e4'),borderRadius:'10px',overflow:'hidden',cursor:'pointer',opacity:(isBlank&&!isActive)?0.6:1,boxShadow:isActive?'0 0 0 1px '+GREEN:'none',transition:'border-color .15s,opacity .15s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 12px',borderBottom:'0.5px solid #e7e5e4'}}>
+                <div style={{borderRadius:'6px',padding:'2px 8px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',background:d.products.length?'#EAF3DE':'#f5f5f4',color:d.products.length?'#27500A':'#a8a29e'}}>Day {i+1}</div>
+                <input value={d.location} onChange={e=>setLocation(i,e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Add a location…" style={{border:'none',outline:'none',background:'transparent',fontSize:'12px',fontWeight:600,flex:1,minWidth:0}}/>
+              </div>
+              <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+                {d.products.length ? (
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                    {d.products.map(p=>{ const info=cur.products[p]; const dirty=info&&info.issue;
+                      return <span key={p} onClick={e=>{e.stopPropagation();removeProduct(i,p);}} title="Click to remove" style={chip(dirty?'flag':(info&&info.board?'board':'prod'),{cursor:'pointer'})}>{p}{dirty?' ⚠':''} ×</span>; })}
+                  </div>
+                ) : <div style={{fontSize:'11px',color:'#a8a29e'}}>{isActive?'Search or click a suggestion to add places →':'Choose places from the suggestion panel →'}</div>}
+
+                {dayThemesDisplay(d).length ? (
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                    {dayThemesDisplay(d).map(t=><span key={t} style={chip('theme',{cursor:'default'})}>{t}<span onClick={e=>{e.stopPropagation();removeTheme(i,t);}} style={{cursor:'pointer',marginLeft:'2px',opacity:.6}}>×</span></span>)}
+                  </div>
+                ) : null}
+
+                <textarea value={d.desc||''} onClick={e=>e.stopPropagation()}
+                  onChange={e=>{ e.stopPropagation(); setDesc(i,e.target.value); }}
+                  placeholder="Description (from source itinerary — edit as needed)…"
+                  rows={d.desc? Math.min(8, Math.max(2, Math.round((d.desc.length)/90)+1)) : 2}
+                  style={{border:'0.5px solid #e7e5e4',borderRadius:'6px',padding:'6px 8px',fontSize:'11px',background:'#fafaf9',resize:'vertical',lineHeight:'1.55',color:'#44403c',width:'100%',fontFamily:'inherit'}}/>
+
+                <input value={themeInputs[i]||''} onClick={e=>e.stopPropagation()}
+                  onChange={e=>setThemeInputs(s=>({...s,[i]:e.target.value}))}
+                  onKeyDown={e=>{ if(e.key==='Enter'){ addCustomTheme(i,themeInputs[i]||''); setThemeInputs(s=>({...s,[i]:''})); } }}
+                  placeholder="+ add a theme, press Enter" style={{border:'0.5px dashed #d6d3d1',borderRadius:'6px',padding:'4px 8px',fontSize:'11px',background:'#fafaf9'}}/>
+              </div>
+            </div>);
+          })}
+        </div>);
+  }
+  function renderBuilderPanel(){
+    const {active, list, chipKind} = _builderShared();
+    const dayOf={}; days.forEach((d,di)=>d.products.forEach(p=>{ if(dayOf[p]===undefined) dayOf[p]=di; }));
+    return (<>
+
+          {/* suggestion panel */}
+          <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px'}}>
+            <div style={{display:'flex',borderBottom:'0.5px solid #e7e5e4'}}>
+              {[['popular','Popular'],['board','Board']].map(([k,l])=>(
+                <div key={k} onClick={()=>setSuggestTab(k)} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
+              ))}
+            </div>
+            <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+              <input value={suggestSearch} onChange={e=>setSuggestSearch(e.target.value)} placeholder="Search products…" style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px'}}/>
+              <div style={{fontSize:'10px',color:'#a8a29e'}}>Adding to <b>Day {activeDay+1}</b></div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                {list.length? list.map(([name,info])=>{
+                  const onActive=active.products.includes(name);
+                  const elsewhere=(!onActive&&dayOf[name]!==undefined)?dayOf[name]:-1;
+                  const inItin=onActive||elsewhere>=0;
+                  return <span key={name} onClick={()=>toggleProduct(name)} title={onActive?'On this day — click to remove':(elsewhere>=0?('On Day '+(elsewhere+1)):'Add to Day '+(activeDay+1))} style={chip(chipKind,{cursor:'pointer',faded:inItin})}>{inItin?'✓':'+'} {name}</span>;
+                }) : <div style={{fontSize:'11px',color:'#a8a29e'}}>No products match.</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* ── insights panel ── */}
+          {(()=>{
+            const allTmpls = cur.templates || [];
+            const myThemes = new Set(themeSet);
+
+            // missing themes + avg day position
+            const missingThemes = THEMES.filter(t=>!myThemes.has(t));
+            const themeAvgDay = {};
+            THEMES.forEach(th=>{
+              const positions=[];
+              allTmpls.forEach(tpl=>{
+                (tpl.days||[]).forEach((d,di)=>{
+                  const hasIt=(d.themes||[]).includes(th)||(d.places||[]).some(p=>{ const info=cur.products[p]; return info&&(info.t||[]).includes(th); });
+                  if(hasIt) positions.push(di+1);
+                });
+              });
+              themeAvgDay[th] = positions.length? Math.round(positions.reduce((a,b)=>a+b,0)/positions.length) : null;
+            });
+
+            // product overlap counts
+            let boardOnly=0, compOnly=0, both=0;
+            const allMyProducts = [...new Set(days.flatMap(d=>d.products))];
+            allMyProducts.forEach(p=>{ const info=cur.products[p]; if(!info) return; if(info.board&&info.op) both++; else if(info.board) boardOnly++; else if(info.op) compOnly++; });
+
+            const cardHd={fontSize:'12px',fontWeight:700,color:'#1c1917',marginBottom:'4px'};
+            const muted={fontSize:'10px',color:'#a8a29e'};
+
+            return (<>
+
+              {/* theme gaps */}
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px'}}>
+                <div style={cardHd}>Theme gaps</div>
+                {missingThemes.length===0
+                  ? <div style={{fontSize:'11px',color:'#27500A',fontWeight:600}}>✓ All 8 themes covered</div>
+                  : missingThemes.map(th=>(
+                    <div key={th} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'7px',gap:'8px'}}>
+                      <span style={chip('flag')}>{th}</span>
+                      {themeAvgDay[th]
+                        ? <span style={{...muted,background:'#f5f5f4',borderRadius:'4px',padding:'2px 7px',whiteSpace:'nowrap'}}>avg Day {themeAvgDay[th]}</span>
+                        : <span style={muted}>rare</span>}
+                    </div>
+                  ))
+                }
+              </div>
+
+              {/* product overlap */}
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px'}}>
+                <div style={cardHd}>Your products — market presence</div>
+                <div style={{fontSize:'11px',color:'#78716c',marginBottom:'2px'}}>Of the {allMyProducts.length} products you've added:</div>
+                <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                  <div style={{flex:1,background:'#EAF3DE',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#27500A',lineHeight:1}}>{both}</div>
+                    <div style={{fontSize:'10px',color:'#27500A',fontWeight:600,marginTop:'3px'}}>in both</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>board + comp</div>
+                  </div>
+                  <div style={{flex:1,background:'#FAEEDA',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#633806',lineHeight:1}}>{boardOnly}</div>
+                    <div style={{fontSize:'10px',color:'#633806',fontWeight:600,marginTop:'3px'}}>board only</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>promoted</div>
+                  </div>
+                  <div style={{flex:1,background:'#E6F1FB',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#0C447C',lineHeight:1}}>{compOnly}</div>
+                    <div style={{fontSize:'10px',color:'#0C447C',fontWeight:600,marginTop:'3px'}}>comp only</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>actually sold</div>
+                  </div>
+                </div>
+              </div>
+
+            </>);
+          })()}
+
+    </>);
+  }
+
+  function renderTemplates(){
+    const tpls = tplsFiltered;
+    const maxPop = Math.max(1, ...tpls.map(t=>t.pop||0));
+
+    const pillStyle = (active) => ({padding:'4px 12px',borderRadius:'99px',fontSize:'11px',fontWeight:600,cursor:'pointer',border:'0.5px solid '+(active?'#C0DD97':'#d6d3d1'),background:active?TINT:'#fff',color:active?'#27500A':'#57534e',transition:'background .12s',whiteSpace:'nowrap'});
+    const selStyle = {border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px',background:'#fff',cursor:'pointer',color:'#1c1917'};
+
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+
+      {/* ── state pills ── */}
+      <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+        <span style={{fontSize:'11px',color:'#57534e',fontWeight:600}}>State</span>
+        {stateKeys.map(k=>(
+          <button key={k} onClick={()=>{ setTplStateKey(k); setExpandedTpl(null); setTplCityFilter(''); setTplThemeFilter(''); setTplSourceFilter('all'); setTplSearch(''); }}
+            style={pillStyle(tplStateKey===k)}>{catalog[k].abbr}</button>
+        ))}
+      </div>
+
+      {/* ── filter bar ── */}
+      <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap',paddingBottom:'4px',borderBottom:'0.5px solid #e7e5e4'}}>
+        {/* source type pills */}
+        <button onClick={()=>setTplSourceFilter('all')}        style={pillStyle(tplSourceFilter==='all')}>All</button>
+        <button onClick={()=>setTplSourceFilter('Competitor')} style={pillStyle(tplSourceFilter==='Competitor')}>Competitor</button>
+        <button onClick={()=>setTplSourceFilter('Board')}      style={pillStyle(tplSourceFilter==='Board')}>Board</button>
+
+        <div style={{width:'0.5px',height:'18px',background:'#e7e5e4',margin:'0 2px'}}/>
+
+        {/* city dropdown */}
+        <select value={tplCityFilter} onChange={e=>setTplCityFilter(e.target.value)} style={selStyle}>
+          <option value="">All cities</option>
+          {tplCityOptions.map(c=><option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* theme dropdown */}
+        <select value={tplThemeFilter} onChange={e=>setTplThemeFilter(e.target.value)} style={selStyle}>
+          <option value="">All themes</option>
+          {tplThemeOptions.map(x=><option key={x} value={x}>{x}</option>)}
+        </select>
+
+        {/* search */}
+        <input value={tplSearch} onChange={e=>setTplSearch(e.target.value)} placeholder="Search name or source…"
+          style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px',minWidth:'180px',flex:1}}/>
+
+        <span style={{fontSize:'11px',color:'#a8a29e',whiteSpace:'nowrap',marginLeft:'auto'}}>{tpls.length} of {(tplCur.templates||[]).length} itineraries</span>
+
+        {/* clear button */}
+        {(tplSourceFilter!=='all'||tplCityFilter||tplThemeFilter||tplSearch)
+          ? <button onClick={()=>{setTplSourceFilter('all');setTplCityFilter('');setTplThemeFilter('');setTplSearch('');}} style={{...ghostBtn,padding:'4px 10px',fontSize:'11px'}}>✕ Clear</button>
+          : null}
+      </div>
+
+      {/* ── list ── */}
+      {tpls.length? (
+        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {tpls.map((t,i)=>{
+            let prodCount=0; const tThemes=new Set(t.themes||[]); const route=[];
+            (t.days||[]).forEach(d=>{ (d.places||[]).forEach(p=>{prodCount++; const info=tplCur.products[p]; if(info)(info.t||[]).forEach(x=>tThemes.add(x));}); (d.themes||[]).forEach(x=>tThemes.add(x)); const cy=d.title||cityOf((d.places||[])[0]); if(cy&&route[route.length-1]!==cy)route.push(cy); });
+            const expanded=expandedTpl===i;
+            const pct=Math.round((t.pop||0)/maxPop*100);
+            const isBoard=t.type==='Board';
+            return (
+            <div key={i} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',overflow:'hidden'}}>
+              {/* left accent bar via border-left on inner row */}
+              <div style={{display:'flex',gap:'12px',padding:'12px 14px',borderLeft:'3px solid '+(isBoard?'#EF9F27':'#378ADD')}}>
+                {/* main info */}
+                <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'5px'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:'8px',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'13px',fontWeight:700}}>{t.name}</div>
+                    <span style={chip(isBoard?'board':'prod',{small:true})}>{t.type}</span>
+                  </div>
+                  <div style={{fontSize:'11px',color:'#57534e'}}>{t.source} · {(t.days||[]).length} days · {prodCount} products</div>
+                  {route.length? <div style={{fontSize:'10px',color:'#a8a29e',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{route.slice(0,6).join('  →  ')}{route.length>6?' →…':''}</div>:null}
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginTop:'2px'}}>
+                    {[...tThemes].slice(0,6).map(x=><span key={x} style={chip('theme',{small:true})}>{x}</span>)}
+                    {tThemes.size>6?<span style={{fontSize:'10px',color:'#a8a29e',padding:'2px 4px'}}>+{tThemes.size-6} more</span>:null}
+                  </div>
+                </div>
+                {/* right: bar + actions */}
+                <div style={{display:'flex',flexDirection:'column',gap:'8px',alignItems:'flex-end',minWidth:'160px',justifyContent:'space-between'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px',width:'100%'}}>
+                    <Bar pct={pct} color={isBoard?'#EF9F27':'#378ADD'}/>
+                    <span title="Number of day-rows in the dataset that include this itinerary's products — higher = more commercially popular route" style={{fontSize:'10px',color:'#a8a29e',whiteSpace:'nowrap',cursor:'help'}}>{t.pop} day-rows ⓘ</span>
+                  </div>
+                  <div style={{display:'flex',gap:'6px'}}>
+                    <button onClick={()=>{ loadTemplate(t); setStateKey(tplStateKey); }} style={primaryBtn}>Load into builder</button>
+                    <button onClick={()=>setExpandedTpl(expanded?null:i)} style={ghostBtn}>{expanded?'Hide':'Days'}</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* expanded day-by-day */}
+              {expanded? (
+                <div style={{padding:'12px 14px',borderTop:'0.5px solid #f0efed',display:'flex',flexDirection:'column',gap:'10px',background:'#fafaf9'}}>
+                  {(t.days||[]).map((d,di)=>(
+                    <div key={di} style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                        <div style={{borderRadius:'6px',padding:'2px 7px',fontSize:'10px',fontWeight:700,background:'#f0efed',color:'#57534e',whiteSpace:'nowrap'}}>Day {di+1}</div>
+                        {d.title? <div style={{fontSize:'12px',fontWeight:600}}>{d.title}</div>:null}
+                        {(d.themes||[]).map(x=><span key={x} style={chip('theme',{small:true})}>{x}</span>)}
+                      </div>
+                      {(d.places||[]).length? (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'4px',paddingLeft:'4px'}}>
+                          {d.places.map(p=>{const info=tplCur.products[p]; return <span key={p} style={chip(info&&info.board?'board':'prod',{small:true})}>{p}</span>;})}
+                        </div>
+                      ): <div style={{fontSize:'10px',color:'#a8a29e',paddingLeft:'4px'}}>Free day</div>}
+                      {d.desc? <div style={{fontSize:'10px',color:'#57534e',lineHeight:'1.5',paddingLeft:'4px'}}>{d.desc}</div>:null}
+                    </div>
+                  ))}
+                </div>
+              ):null}
+            </div>);
+          })}
+        </div>
+      ) : <div style={empty}>No templates match the current filters.</div>}
+    </div>);
+  }
+
+  function renderInsights(){
+    const allSorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    const maxAll = allSorted.length?allSorted[0][1].pop:1;
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
+      <div style={{fontSize:'11px',color:'#57534e',marginBottom:'6px'}}>Top products in {cur.name} by number of tours that include them.</div>
+      {allSorted.map(([name,info])=>(
+        <div key={name} style={{display:'flex',alignItems:'center',gap:'10px',padding:'4px 0'}}>
+          <div style={{width:'220px',fontSize:'12px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</div>
+          <span style={chip(info.issue?'flag':(info.board?(info.op?'prod':'board'):'theme'),{small:true})}>{info.issue?'Needs cleanup':(info.board?(info.op?'Both':'Board only'):'Operators')}</span>
+          <Bar pct={Math.round(info.pop/maxAll*100)} color={info.issue?'#D98A74':'#378ADD'}/>
+          <div style={{fontSize:'11px',color:'#a8a29e',minWidth:'30px',textAlign:'right'}}>{info.pop}</div>
+        </div>
+      ))}
+    </div>);
+  }
+
+  function renderGap(){
+    const boardOnly = cleanEntries.filter(e=>e[1].board&&!e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const both      = cleanEntries.filter(e=>e[1].board&&e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const opOnly    = cleanEntries.filter(e=>!e[1].board&&e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const col = (title, sub, arr, kind)=>(
+      <div style={{flex:1,minWidth:'220px',background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+        <div><div style={{fontSize:'12px',fontWeight:600}}>{title} <span style={{color:'#a8a29e'}}>({arr.length})</span></div><div style={{fontSize:'10px',color:'#57534e'}}>{sub}</div></div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>{arr.slice(0,40).map(([n])=><span key={n} onClick={()=>{setView('builder');toggleProduct(n);}} style={chip(kind,{cursor:'pointer',small:true})}>{n}</span>)}</div>
+      </div>);
+    return (
+    <div style={{padding:'14px 16px',display:'flex',gap:'10px',flexWrap:'wrap'}}>
+      {col('Board only','Promoted by tourism board, not sold by operators', boardOnly,'board')}
+      {col('Both','Aspirational AND commercial — safe anchors', both,'prod')}
+      {col('Operators only','Sold by operators, board ignores', opOnly,'theme')}
+    </div>);
+  }
+
+  function renderData(){
+    const rows = cur.allRows||[];
+    const dq=(dataSearch||'').toLowerCase().trim();
+    const filtered = rows.filter(r=>{
+      if(dataFilter==='board'&&r.type!=='Board') return false;
+      if(dataFilter==='comp'&&r.type!=='Competitor') return false;
+      if(dq){ const hay=(r.tour+' '+r.source+' '+r.city+' '+r.location+' '+r.products+' '+r.themes).toLowerCase(); if(!hay.includes(dq)) return false; }
+      return true;
+    });
+    const PER=50; const pages=Math.max(1,Math.ceil(filtered.length/PER)); const pg=Math.min(dataPage,pages-1);
+    const slice=filtered.slice(pg*PER,pg*PER+PER);
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}}>
+      <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+        {[['all','All sources'],['board','Board'],['comp','Competitor']].map(([k,l])=>(
+          <button key={k} onClick={()=>{setDataFilter(k);setDataPage(0);}} style={{padding:'5px 11px',fontSize:'11px',fontWeight:600,borderRadius:'6px',cursor:'pointer',border:'0.5px solid '+(dataFilter===k?'#C0DD97':'#d6d3d1'),background:dataFilter===k?TINT:'#fff',color:dataFilter===k?'#27500A':'#57534e'}}>{l}</button>
+        ))}
+        <input value={dataSearch} onChange={e=>{setDataSearch(e.target.value);setDataPage(0);}} placeholder="Search rows…" style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px',flex:1,minWidth:'160px'}}/>
+      </div>
+      <div style={{fontSize:'11px',color:'#a8a29e'}}>{filtered.length?('Showing '+(pg*PER+1)+'–'+(pg*PER+slice.length)+' of '+filtered.length+' rows'):'No rows match'}</div>
+      <div style={{overflowX:'auto',border:'0.5px solid #e7e5e4',borderRadius:'8px'}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:'11px'}}>
+          <thead><tr style={{background:'#fafaf9',textAlign:'left'}}>{['Tour','Source','Day','City','Location / product','Themes'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+          <tbody>{slice.map((r,i)=>(
+            <tr key={i} style={{background:i%2?'#fafaf9':'#fff'}}>
+              <td style={td}>{r.url?<a href={r.url} target="_blank" rel="noopener" style={{color:'#185FA5',textDecoration:'none'}}>{r.tour}</a>:r.tour}</td>
+              <td style={td}><span style={chip(r.type==='Board'?'board':'prod',{small:true})}>{r.source}</span></td>
+              <td style={td}>{r.day}</td><td style={td}>{r.city}</td>
+              <td style={Object.assign({},td,{color:'#0C447C',fontWeight:600})}>{r.location||r.products}</td>
+              <td style={Object.assign({},td,{color:'#57534e'})}>{r.themes}</td>
+            </tr>))}</tbody>
+        </table>
+      </div>
+      <div style={{display:'flex',gap:'8px',alignItems:'center',justifyContent:'flex-end'}}>
+        <button onClick={()=>setDataPage(Math.max(0,pg-1))} disabled={pg<=0} style={pagerBtn(pg>0)}>‹ Prev</button>
+        <span style={{fontSize:'11px',color:'#a8a29e'}}>Page {pg+1} of {pages}</span>
+        <button onClick={()=>setDataPage(Math.min(pages-1,pg+1))} disabled={pg>=pages-1} style={pagerBtn(pg<pages-1)}>Next ›</button>
+      </div>
+    </div>);
+  }
+
+  function renderSaved(){
+    if(savedLoading) return <div style={empty}>Loading…</div>;
+    if(!saved.length) return <div style={empty}>No saved itineraries yet. Build one and click <b>Save</b>.</div>;
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}}>
+      {saved.slice().reverse().map(sv=>{
+        const allThemes=new Set(); (sv.days||[]).forEach(d=>(d.themes||[]).forEach(t=>allThemes.add(t)));
+        return (
+        <div key={sv.id} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:'200px'}}>
+            <div style={{fontSize:'13px',fontWeight:600}}>{sv.name}</div>
+            <div style={{fontSize:'11px',color:'#57534e',marginTop:'2px'}}>{(catalog[sv.state]||{}).name||sv.state} · {sv.duration} days · saved {(sv.savedAt||'').replace('T',' @ ')}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'5px',marginTop:'6px'}}>{[...allThemes].slice(0,6).map(t=><span key={t} style={chip('theme',{small:true})}>{t}</span>)}</div>
+          </div>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={()=>loadSavedItinerary(sv)} style={primaryBtn}>Load</button>
+            <button onClick={()=>deleteSaved(sv.id)} style={dangerBtn}>Delete</button>
+          </div>
+        </div>);
+      })}
+    </div>);
+  }
+
+  const viewBody = {builder:renderBuilder, templates:renderTemplates, insights:renderInsights, gap:renderGap, data:renderData, saved:renderSaved}[view];
+
+  return (
+  <div style={{display:'flex',width:'100%',height:'100vh',border:'0.5px solid #e7e5e4',overflow:'hidden',background:'#fafaf9'}}>
+    {/* sidebar */}
+    <div style={{width:'196px',minWidth:'196px',background:'#fff',borderRight:'0.5px solid #e7e5e4',padding:'14px 12px',display:'flex',flexDirection:'column',gap:'12px',overflowY:'auto'}}>
+      <div style={{fontSize:'14px',fontWeight:600,display:'flex',alignItems:'center',gap:'6px'}}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg> Tour Builder
+      </div>
+      <hr style={hr}/>
+      <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+        {NAV.map(([k,l])=><div key={k} onClick={()=>setView(k)} style={navStyle(k)}>{l}</div>)}
+      </div>
+      <hr style={hr}/>
+      <div style={{padding:'4px 0'}}><Label>Tours in dataset</Label><div style={{fontSize:'18px',fontWeight:600}}>{totalTours.toLocaleString()}</div></div>
+      <div style={{padding:'4px 0'}}><Label>Distinct products</Label><div style={{fontSize:'18px',fontWeight:600}}>{distinctProducts.toLocaleString()}</div></div>
+      <div style={{padding:'4px 0'}}><Label>Day rows</Label><div style={{fontSize:'18px',fontWeight:600}}>{totalRows.toLocaleString()}</div></div>
+    </div>
+
+    {/* main */}
+    <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+      <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+        <div>
+          <div style={{fontSize:'16px',fontWeight:600}}>{topTitle}</div>
+          <div style={{fontSize:'11px',color:'#57534e',marginTop:'1px'}}>{topSub}</div>
+        </div>
+        <div style={{display:'flex',gap:'8px'}}>
+          {view==='builder'? <button onClick={saveItinerary} style={primaryBtn}>Save</button>:null}
+          <button onClick={exportWord} style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 11px',borderRadius:'6px',fontSize:'12px',background:TINT,color:'#27500A',border:'0.5px solid #C0DD97',cursor:'pointer'}}>↓ Export</button>
+        </div>
+      </div>
+      {view==='builder' && (
+        <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'10px 16px',display:'flex',flexDirection:'column',gap:'8px'}}>
+          {/* controls row */}
+          <div style={{display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+              <Label>State</Label>
+              <select value={stateKey} onChange={e=>setStateKey(e.target.value)} style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 10px',fontSize:'12px',background:'#fff',minWidth:'160px',cursor:'pointer'}}>
+                {stateKeys.map(k=><option key={k} value={k}>{catalog[k].name}</option>)}
+              </select>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:'4px',flex:1,minWidth:'200px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'8px'}}>
+                <Label>Tour name</Label>
+                {tourUrl ? <a href={tourUrl} target="_blank" rel="noopener" style={{fontSize:'11px',color:'#185FA5',textDecoration:'none',fontWeight:500}}>View original ↗</a> : null}
+              </div>
+              <input value={tourName} onChange={e=>setTourName(e.target.value)} placeholder="Name your tour…" style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 10px',fontSize:'12px',background:'#fff',width:'100%'}}/>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+              <Label>Duration</Label>
+              <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                <div onClick={()=>setDur(duration-1)} style={stepBtn}>−</div>
+                <div style={{fontSize:'16px',fontWeight:600,minWidth:'20px',textAlign:'center'}}>{duration}</div>
+                <div onClick={()=>setDur(duration+1)} style={stepBtn}>+</div>
+                <div style={{fontSize:'12px',color:'#57534e'}}>days</div>
+              </div>
+            </div>
+          </div>
+          {/* KPI tiles */}
+          <div style={{display:'grid',gridTemplateColumns:tourSource?'repeat(5,1fr)':'repeat(4,1fr)',gap:'8px'}}>
+            <Card><Label>Days planned</Label><div style={metricNum}>{daysPlanned}</div><div style={metricSub}>of {duration}</div></Card>
+            <Card><Label>Products added</Label><div style={metricNum}>{productsAdded}</div></Card>
+            <Card><Label>Themes covered</Label><div style={metricNum}>{themeSet.size}</div><div style={metricSub}>of {THEMES.length}</div></Card>
+            <Card><Label>Board alignment</Label><div style={metricNum}>{boardAlignment}%</div><div style={metricSub}>products featured by board</div></Card>
+            {tourSource && <Card><Label>Source</Label><div style={{fontSize:'13px',fontWeight:600,color:'#185FA5',marginTop:'2px',wordBreak:'break-word'}}>{tourSource}</div></Card>}
+          </div>
+        </div>
+      )}
+      {view==='builder'
+        ? <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+            <div style={{flex:1,overflowY:'auto',padding:'14px 16px',display:'flex',flexDirection:'column',gap:'8px'}}>{renderBuilderDays()}</div>
+            <div style={{width:'300px',minWidth:'300px',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:'10px',borderLeft:'0.5px solid #e7e5e4'}}>{renderBuilderPanel()}</div>
+          </div>
+        : <div style={{flex:1,overflow:'auto'}}>{viewBody()}</div>
+      }
+    </div>
+
+    {toast? <div style={{position:'fixed',bottom:'24px',left:'50%',background:'#1c1917',color:'#fff',padding:'10px 16px',borderRadius:'8px',fontSize:'12px',boxShadow:'0 6px 24px rgba(0,0,0,.2)',animation:'toastIn .2s ease',zIndex:50}}>{toast}</div>:null}
+  </div>);
+}
+
+// shared style fragments
+const stepBtn   = {width:'26px',height:'26px',border:'0.5px solid #d6d3d1',borderRadius:'6px',background:'#f5f5f4',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#57534e',cursor:'pointer',userSelect:'none'};
+const metricNum = {fontSize:'20px',fontWeight:600};
+const metricSub = {fontSize:'10px',color:'#a8a29e',marginTop:'1px'};
+const hr        = {border:'none',borderTop:'0.5px solid #e7e5e4',margin:'4px 0',width:'100%'};
+const empty     = {padding:'40px 16px',textAlign:'center',color:'#a8a29e',fontSize:'13px'};
+const th        = {padding:'8px 10px',fontWeight:600,color:'#57534e',borderBottom:'0.5px solid #e7e5e4',whiteSpace:'nowrap'};
+const td        = {padding:'7px 10px',borderBottom:'0.5px solid #f0efed',verticalAlign:'top'};
+const primaryBtn= {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:GREEN,color:'#fff',border:'none',cursor:'pointer'};
+const ghostBtn  = {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'#fff',color:'#57534e',border:'0.5px solid #d6d3d1',cursor:'pointer'};
+const dangerBtn = {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'#FBE9E7',color:'#8C2F1E',border:'0.5px solid #F3B5A7',cursor:'pointer'};
+const pagerBtn  = (on)=>({padding:'5px 11px',fontSize:'12px',fontWeight:600,borderRadius:'6px',border:'0.5px solid #d6d3d1',background:on?'#fff':'#f5f5f4',color:on?'#1c1917':'#cbc9c6',cursor:on?'pointer':'not-allowed'});
+
+// ---- boot ----
+function boot(){
+  const root = document.getElementById('root');
+  if (!window.DATA_MODULE){
+    root.innerHTML = '<div style="padding:40px;color:#8C2F1E">data.js failed to load (window.DATA_MODULE missing).</div>';
+    return;
+  }
+  ReactDOM.createRoot(root).render(<App/>);
+}
+boot();
+</script>
+</body>
+</html>

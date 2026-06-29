@@ -26,9 +26,17 @@ from pathlib import Path
 
 try:
     import openpyxl
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 except ImportError:
     raise SystemExit("openpyxl is not installed. Run: pip install openpyxl")
+
+
+def _safe(s):
+    """Strip control chars Excel/XML rejects (some source CSVs carry stray
+    \\x0b / \\x0c etc. inside narrative text)."""
+    return ILLEGAL_CHARACTERS_RE.sub("", s) if isinstance(s, str) else s
+
 
 ROOT = Path(__file__).resolve().parent.parent
 # default: every competitor source's latest day-level CSV
@@ -37,6 +45,9 @@ DEFAULT_INPUTS = [
     ROOT / "webscraping" / "veena_world" / "data" / "latest" / "itinerary_days.csv",
     ROOT / "webscraping" / "sotc" / "data" / "latest" / "itinerary_days.csv",
     ROOT / "webscraping" / "make_my_trip" / "data" / "latest" / "itinerary_days.csv",
+    ROOT / "webscraping" / "chan_brothers" / "data" / "latest" / "itinerary_days.csv",
+    ROOT / "webscraping" / "hayleys_travels" / "data" / "latest" / "itinerary_days.csv",
+    ROOT / "webscraping" / "black_tomato" / "data" / "latest" / "itinerary_days.csv",
 ]
 DEFAULT_OUTPUT = ROOT / "analysis" / "competitor_itineraries.xlsx"
 
@@ -57,6 +68,9 @@ SOURCE_LABEL = {
     "veena_world":        "Veena World",
     "sotc":               "SOTC",
     "make_my_trip":       "MakeMyTrip",
+    "chan_brothers":      "Chan Brothers",
+    "hayleys_travels":   "Hayleys Travels",
+    "black_tomato":      "Black Tomato",
 }
 
 
@@ -86,7 +100,7 @@ def load_and_aggregate(csv_paths):
                 name = row["tour_name"].strip()
                 if url not in tour_meta:
                     tour_meta[url] = {
-                        "tour_name":   name,
+                        "tour_name":   _safe(name),
                         "source":      SOURCE_LABEL.get(row["source"].strip(), row["source"].strip()),
                         "source_type": row.get("source_type", "Competitor").strip() or "Competitor",
                         "total_days":  row["total_days"].strip(),
@@ -96,10 +110,27 @@ def load_and_aggregate(csv_paths):
                     day_num = int(row["day_number"])
                 except (ValueError, KeyError):
                     day_num = 0
+                # Day-level schema is source | ... | location | place |
+                # description | experiences (see the competitor scrapers). Older
+                # CSVs used a single "activity" column -- fall back to it.
+                place = (row.get("place") or "").strip()
+                desc  = (row.get("description") or "").strip()
+                exp   = (row.get("experiences") or "").strip()
+                if "activity" in row and not (place or desc or exp):
+                    activity = row["activity"].strip()
+                else:
+                    parts = []
+                    if place and place.lower() != row["location"].strip().lower():
+                        parts.append(place)
+                    if desc:
+                        parts.append(desc)
+                    if exp:
+                        parts.append(f"Highlights: {exp}")
+                    activity = "\n\n".join(parts)
                 tour_days[url].append({
                     "day_number": day_num,
-                    "location":   row["location"].strip(),
-                    "activity":   row["activity"].strip(),
+                    "location":   _safe(row["location"].strip()),
+                    "activity":   _safe(activity),
                 })
 
     for url in tour_days:
