@@ -22,6 +22,7 @@ import extractor as ex
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data", "sample_itineraries.csv")
+SOURCE_LOCATIONS_PATH = os.path.join(os.path.dirname(HERE), "data", "config", "source_locations.csv")
 
 st.set_page_config(page_title="Itinerary Products", page_icon="🧭", layout="wide")
 
@@ -57,21 +58,25 @@ def chips(items, css):
 # --------------------------------------------------------------------------
 # Data
 # --------------------------------------------------------------------------
-SOURCE_LABEL = {
-    "global_journeys": "Global Journeys",
-    "inside_australia": "Inside Australia",
-    "australia_com": "Australia.com (board)",
-}
+
+@st.cache_data(show_spinner=False)
+def _load_source_meta():
+    df = pd.read_csv(SOURCE_LOCATIONS_PATH, dtype=str)
+    labels    = dict(zip(df["source_key"], df["display_name"]))
+    locations = dict(zip(df["source_key"], df["location"]))
+    return labels, locations
 
 
 @st.cache_data(show_spinner="Tagging itineraries with the rules engine…")
 def load_tagged():
+    source_labels, source_locations = _load_source_meta()
     df = pd.read_csv(DATA)
     df["location"] = df["location"].fillna("")
     df["activity"] = df["activity"].fillna("")
     df = ex.tag_dataframe(df)
-    df["kind"] = df["source"].map(lambda s: "Board" if s == "australia_com" else "Operator")
-    df["source_label"] = df["source"].map(SOURCE_LABEL).fillna(df["source"])
+    df["kind"]            = df["source"].map(lambda s: "Board" if s == "australia_com" else "Operator")
+    df["source_label"]    = df["source"].map(source_labels).fillna(df["source"])
+    df["source_location"] = df["source"].map(source_locations).fillna("Unknown")
     return df
 
 

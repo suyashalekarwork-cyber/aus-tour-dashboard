@@ -158,7 +158,18 @@ def title_from_url(url):
     return slug.title() if slug else 'Untitled itinerary'
 
 
+SOURCE_LOCATIONS_PATH = Path(__file__).parent.parent.parent / 'data' / 'config' / 'source_locations.csv'
+
+
+def _load_source_location_map():
+    if not SOURCE_LOCATIONS_PATH.exists():
+        return {}
+    loc_df = pd.read_csv(SOURCE_LOCATIONS_PATH, dtype=str)
+    return dict(zip(loc_df['source_key'], loc_df['location']))
+
+
 def build():
+    source_location_map = _load_source_location_map()
     df = pd.read_csv(CSV_PATH, low_memory=False)
 
     df['place_tags']  = df['place_tags'].fillna('')
@@ -292,7 +303,8 @@ def build():
                     continue
                 dthemes = [t for t in THEMES if t in day_row['_themes']]
                 desc    = str(day_row['activity']).strip()
-                days.append({'title': title, 'places': places,
+                raw_city = '' if (day_row['city'] is None or isinstance(day_row['city'], float)) else str(day_row['city']).strip()
+                days.append({'title': title, 'city': raw_city, 'places': places,
                              'themes': dthemes, 'desc': desc})
                 themes.update(day_row['_themes'])
 
@@ -321,13 +333,14 @@ def build():
                 pop = max((products[p]['comp_pop'] for p in all_p if p in products), default=0)
 
             entry = {
-                'name':   tour_name,
-                'source': src_display,
-                'type':   tmpl_type,
-                'pop':    pop,
-                'url':    tour_url,
-                'themes': [t for t in THEMES if t in themes],
-                'days':   days,
+                'name':           tour_name,
+                'source':         src_display,
+                'sourceLocation': source_location_map.get(str(tour_df['source'].iloc[0]), 'Unknown'),
+                'type':           tmpl_type,
+                'pop':            pop,
+                'url':            tour_url,
+                'themes':         [t for t in THEMES if t in themes],
+                'days':           days,
             }
             if is_board_tour:
                 board_tmpls.append(entry)
@@ -367,15 +380,16 @@ def build():
             src_domain = re.sub(r'^https?://(www\.)?', '', src_raw).split('/')[0]
             url_raw    = str(row['tour_url']).strip() if isinstance(row['tour_url'], str) else ''
             all_rows.append({
-                'tour':     row['tour_name'],
-                'source':   src_domain,
-                'type':     'Board' if row['_is_board'] else 'Competitor',
-                'day':      int(row['day_number']) if pd.notna(row['day_number']) else 1,
-                'city':     row['city'],
-                'location': row['location'],
-                'products': ', '.join(row['_prods']),
-                'themes':   ', '.join(row['_themes']),
-                'url':      url_raw,
+                'tour':           row['tour_name'],
+                'source':         src_domain,
+                'sourceLocation': source_location_map.get(str(row['source']), 'Unknown'),
+                'type':           'Board' if row['_is_board'] else 'Competitor',
+                'day':            int(row['day_number']) if pd.notna(row['day_number']) else 1,
+                'city':           row['city'],
+                'location':       row['location'],
+                'products':       ', '.join(row['_prods']),
+                'themes':         ', '.join(row['_themes']),
+                'url':            url_raw,
             })
 
         # ── seed (default builder state) ───────────────────────────────────

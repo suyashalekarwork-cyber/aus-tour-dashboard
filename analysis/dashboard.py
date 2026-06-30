@@ -25,16 +25,23 @@ except ImportError:
 
 ROOT     = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data" / "raw" / "combined_itineraries_latest.csv"
+SOURCE_LOCATIONS_PATH = ROOT / "data" / "config" / "source_locations.csv"
 
 AU_STATES   = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "NT", "ACT"]
 INTL_STATES = {"South Pacific", "International"}
 
-SOURCE_LABELS = {
-    "global_journeys":  "Global Journeys",
-    "inside_australia": "Inside Australia",
-    "australia_com":    "Australia.com",
-}
 TOURS_PER_PAGE = 50
+
+
+def _load_source_meta() -> tuple[dict, dict]:
+    """Read source_locations.csv → (source_key→display_name, source_key→location)."""
+    df = pd.read_csv(SOURCE_LOCATIONS_PATH, dtype=str)
+    labels    = dict(zip(df["source_key"], df["display_name"]))
+    locations = dict(zip(df["source_key"], df["location"]))
+    return labels, locations
+
+
+SOURCE_LABELS, SOURCE_LOCATIONS = _load_source_meta()
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
@@ -44,7 +51,8 @@ def load_data():
     raw = pd.read_csv(CSV_PATH, encoding="utf-8-sig", dtype=str)
     raw["day_number"] = pd.to_numeric(raw["day_number"], errors="coerce").fillna(0).astype(int)
     raw["total_days"] = pd.to_numeric(raw["total_days"], errors="coerce").fillna(0).astype(int)
-    raw["source"]     = raw["source"].map(SOURCE_LABELS).fillna(raw["source"])
+    raw["source_location"] = raw["source"].map(SOURCE_LOCATIONS).fillna("Unknown")
+    raw["source"]          = raw["source"].map(SOURCE_LABELS).fillna(raw["source"])
 
     intl_urls = set(raw.loc[raw["state"].isin(INTL_STATES), "tour_url"])
     days = raw[~raw["tour_url"].isin(intl_urls)].copy()
