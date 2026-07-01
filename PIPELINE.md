@@ -68,3 +68,11 @@ python analysis/keyword_review_tool.py update
 
 > Bespoke loaders in `combine_sources.py` (the original 9 tourism-board/reference
 > sources) still take precedence; everything else is auto-discovered.
+
+## Downstream: the Itinerary Builder app
+
+`keyword_dataset_<YYYY-MM>.csv` is also the input to `app/pipeline/prepare_data.py`,
+which builds the Itinerary Builder's Templates tab (`app/frontend/data.js`). Templates
+are **multi-state-aware**: a single scraped tour can touch several states (about a
+third of all tours do), so each template carries a `states: [...]` list rather than
+being bucketed into one state. See `CONTEXT.md` for the full `app/` data flow.

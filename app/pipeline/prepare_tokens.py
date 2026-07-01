@@ -20,7 +20,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT            = Path(__file__).parent.parent          # the app/ folder
-CSV_PATH        = r'C:\Users\SuyashA\Desktop\Itinenaries_analysis\data\keywords\keyword_dataset_2026-06.csv'
+CSV_PATH        = str(ROOT.parent / 'data' / 'keywords' / 'keyword_dataset_2026-06.csv')
 OUT_PATH        = str(ROOT / 'frontend' / 'tokens.js')
 GEONAMES_PATH   = ROOT.parent / 'data' / 'gazetteer' / 'AU_geonames.txt'
 CORRECTIONS_PATH = ROOT / 'frontend' / 'token_corrections.json'

@@ -14,7 +14,7 @@ Before this project existed, Australia tour research was done manually — brows
 ## Week-by-Week Timeline
 
 3-month project: **June 1 → August 31, 2026**
-Today is **June 22** — end of Week 3.
+Today is **July 1** — start of Week 5.
 
 ### June — Foundation (Weeks 1–4)
 
@@ -23,7 +23,7 @@ Today is **June 22** — end of Week 3.
 | 1 | Jun 1–7 | Project setup, first scrapers (tourism boards + 3–4 operators), combine pipeline skeleton | ✅ Done |
 | 2 | Jun 8–14 | Remaining competitor scrapers (Thomas Cook, SOTC, MakeMyTrip, Chan Brothers, Veena World, etc.), validate schema | ✅ Done |
 | 3 | Jun 15–21 | Keyword tagging engine (4-layer), manual cleaning tools (keyword_review_tool, city_review_tool), config files | ✅ Done |
-| 4 | Jun 22–28 | **Current week** — Builder data-correctness first (faithful day-by-day itineraries), then UX polish | 🔄 In progress |
+| 4 | Jun 22–28 | Builder data-correctness fixes (faithful day-by-day itineraries) + city/source typeahead filters + Analytics tab | ✅ Done |
 
 ---
 
@@ -31,7 +31,7 @@ Today is **June 22** — end of Week 3.
 
 | Week | Dates | Focus | Status |
 |------|-------|-------|--------|
-| 5 | Jun 29–Jul 5 | Searchable & filterable data-review view (replace Excel navigation), filter by City + Source | ⏳ Upcoming |
+| 5 | Jun 29–Jul 5 | **Current week** — Suggestions-panel search, remaining P0 day-card usability (description/place-chip separation) | 🔄 In progress |
 | 6 | Jul 6–12 | Builder: search inside suggestions panel, graphs/visualisations for theme and source coverage | ⏳ Upcoming |
 | 7 | Jul 13–19 | Analytics Dashboard: full graphs, trend views, state/theme breakdowns — fully usable without Excel | ⏳ Upcoming |
 | 8 | Jul 20–26 | Data quality pass — re-run all scrapers, re-clean keywords, ensure dataset is complete and accurate | ⏳ Upcoming |
@@ -180,7 +180,7 @@ data/config/
 
 **Goal:** Give the product manager a tool to build itineraries informed by market data — not a blank canvas.
 
-### Itinerary Builder (`app/frontend/Itinerary Builder.dc.html`)
+### Itinerary Builder (`app/frontend/builder.html`)
 The PM's main tool. Key features:
 - **Day card build surface** — drag and drop, add/remove products per day
 - **Three suggestion panels** side-by-side:
@@ -188,23 +188,22 @@ The PM's main tool. Key features:
   - Competitors (what rival operators include)
   - Board (what tourism boards recommend)
 - **Live metrics** — days planned, products added, themes covered, board alignment %
-- **Research tabs** — Product Insights, Board vs Operators Gap, Tagged Data
+- **Research tabs** — Product Insights, Board vs Operators Gap, Tagged Data, Saved Itineraries
+- **Analytics tab** — pure-CSS bar charts across sources, markets, geography, themes, duration (added 2026-06-30, folded into `builder.html` rather than a separate file)
 - **Export** — CSV / Excel / Word
-
-### Analytics Dashboard (`app/frontend/Analytics Dashboard.dc.html`)
-- Secondary view for filtering and exploring the full itinerary dataset
 
 ### How the frontend is fed data
 ```
 keyword_dataset CSV
     ↓
-prepare_data.py       → app/frontend/data.js      (loaded by Builder)
-prepare_tokens.py     → app/frontend/tokens.js    (loaded by Token Editor)
+prepare_data.py       → app/frontend/data.js, catalog.js   (loaded by Builder)
+prepare_tokens.py     → app/frontend/tokens.js             (loaded by token review)
                          + GeoNames validation (~35% auto-validated)
                          + fuzzy-cluster near-duplicate spellings
+prepare_all.py         → runs both of the above in one go (what the server calls on sync)
 ```
 
-Token corrections made by the PM in the UI are saved as `data/token_corrections.json` and applied on the next `prepare_data.py` run.
+Token corrections made by the PM in the UI are saved as `app/frontend/token_corrections.json` and applied on the next `prepare_all.py` run.
 
 ---
 
@@ -278,31 +277,22 @@ Top-level `run_pipeline.py` covers steps ③ → ⑥ (combine → tag → export
 
 ## Current Work & Backlog
 
-> **Week-4 priority (decided 22 Jun): fix builder data-correctness BEFORE adding more
-> itineraries.** Collection is done (1,327 tours); the blocker is the builder
-> misrepresenting the data it already has. The bugs below share one root cause — a lossy
-> data contract between `prepare_data.py` and the builder: the real scraped `location`
-> route is discarded and rebuilt from the city. More itineraries → deferred to the Week-8
-> data-quality pass.
+> **Week-4 (22–28 Jun) priority is done:** the P0 data-correctness bugs (collapsed
+> itinerary blobs, count mismatches, missing templates) were fixed, and the Week-6/7
+> UX + visualisation items (city/source filters, Analytics tab) landed early on 2026-06-30.
+> Full detail and status lives in the root `TASK.md`; this file tracks only the
+> week-by-week phase view.
 
-### P0 — Data correctness (do first)
-- [ ] Itinerary loads as a *combined/collapsed* blob, not the real day-by-day route
-      (shows "Perth, Perth, Perth" instead of Fremantle → Rottnest → Margaret River)
-- [ ] "Only one itinerary showing — where's the other?" — combined view hides distinct tours
-- [ ] Count mismatch: same tour shows 23 vs 46 days (duplicate rows), and
-      "41 itineraries but only 26 days" (days silently dropped/merged)
-- [ ] Dashboard itineraries missing from builder template list (e.g. "Paradise in Perth")
-- [ ] Document the data contract — which columns/shape reach the builder
-- [ ] Regenerate data.js (recovered_data.js suggests it is stale)
+### P0 — Data correctness — ✅ Done (see TASK.md for the itemised fix list)
 
-### P1 — Quick UX wins (after data is correct)
-- [ ] "Clear All Days" button in Builder not working
-- [ ] Filter by City + Source (currently state-only)
+### P1 — Quick UX wins
+- [ ] "Clear All Days" button in Builder
+- [x] Filter by City + Source — typeahead filters shipped 2026-06-30
 - [ ] Search feature inside the suggestions panel
 - [ ] Remove "Clean tokens" view from the builder (not needed)
 
 ### P2 — Visualisation
-- [ ] Graphs and visualisations for theme/source coverage (currently table-only)
+- [x] Graphs and visualisations for theme/source coverage — Analytics tab shipped 2026-06-30
 
 ### Deferred
 - [ ] Searchable data-review interface (replace Excel navigation)

@@ -45,13 +45,42 @@
 ### P1 — UX improvements (after data is correct)
 
 - [ ] **"Clear all days" button** — add an option in the builder to clear all days. ![alt text](resources/images/image-2.png)
-- [ ] **Filter by city + source** — currently only a state filter exists; add city and source filters. ![alt text](resources/images/image-3.png)
+- [x] **Filter by city + source** — city typeahead (pill selection) and source-name typeahead added 2026-06-30.
 - [ ] **Search box in the suggestions panel.** ![alt text](resources/images/image-4.png)
 - [ ] **Remove "Clean tokens"** — we don't need it in the tour builder.
 
 ### P2 — Visualisation
 
-- [ ] **Add graphs.** ![alt text](resources/images/image-5.png) Showing all the data is good, but graphs would make it much easier to understand.
+- [x] **Add graphs.** Analytics tab added 2026-06-30 — pure-CSS bar charts across sources, markets, geography, themes, and duration.
+
+---
+
+## 📋 2 July 2026 — Templates redesign, deployment, PM-facing cleanup
+
+- [x] **Templates tab full redesign** to match the Claude Design mockup: card grid + filter
+  rail + Preview/Confirm modals, replacing the old simple filterable list.
+- [x] **Multi-state template modeling** — `app/pipeline/prepare_data.py` restructured from
+  per-state bucketing (`tour_majority_state`) to a single global pass that tags each
+  template with the full list of states it touches (`states: [...]`). About a third of
+  all tours are genuinely multi-state.
+- [x] **Sources filter** — changed from search-typeahead to an always-visible multi-select
+  toggle list (same pattern as States/Themes).
+- [x] **Route cities filter** — changed from search-only (no way to browse) to a browsable
+  multi-select toggle list with a search box to narrow it, capped to 40 shown at a time.
+- [x] **Removed Route section from compact template cards** — was making cards too tall on
+  sources with long day-title text.
+- [x] **Removed "All N days" expand button from cards** — folded into an enlarged Preview
+  modal, which now shows every day in a wrapping grid instead of a scroll row.
+- [x] **Fixed Bar component alignment bug** — Popularity/Board-alignment bars on cards and
+  Theme-coverage/Most-featured-products bars in Preview were invisible or overflowing;
+  `Bar` needed `flex:'1 1 auto'` (row contexts) + `width:'100%'` (column contexts) instead
+  of a single `flex:1`, which only works in row-direction flex parents.
+- [x] **Hid 3 in-progress tabs from the PM-facing nav** (Product insights, Board vs
+  operators, Tagged data) via a `HIDDEN_TABS` array — code/data untouched, easy to
+  re-enable later.
+- [x] **Local deployment for remote PM review** — used the existing bundled
+  `app/server/go_live.py` (Cloudflare tunnel + share file) rather than a separate
+  standalone tunnel setup.
 
 ---
 

@@ -18,7 +18,7 @@ def main():
     print('[prepare_all] Reading CSV...')
 
     prepare_data.CORRECTIONS_PATH = NEW_DIR / 'token_corrections.json'
-    data = prepare_data.build()
+    data, all_templates = prepare_data.build()
 
     records = prepare_tokens.build()
 
@@ -33,6 +33,7 @@ def main():
     CATALOG_OUT.write_text(
         'export const THEMES = ' + json.dumps(prepare_data.THEMES, ensure_ascii=False) + ';\n\n'
         'export const CATALOG = ' + json.dumps(data, ensure_ascii=False, indent=2) + ';\n\n'
+        'export const TEMPLATES = ' + json.dumps(all_templates, ensure_ascii=False, indent=2) + ';\n\n'
         'export const TOKENS = ' + json.dumps(records, ensure_ascii=False, indent=2) + ';\n',
         encoding='utf-8',
     )

@@ -51,8 +51,9 @@ def load_data():
     raw = pd.read_csv(CSV_PATH, encoding="utf-8-sig", dtype=str)
     raw["day_number"] = pd.to_numeric(raw["day_number"], errors="coerce").fillna(0).astype(int)
     raw["total_days"] = pd.to_numeric(raw["total_days"], errors="coerce").fillna(0).astype(int)
-    raw["source_location"] = raw["source"].map(SOURCE_LOCATIONS).fillna("Unknown")
-    raw["source"]          = raw["source"].map(SOURCE_LABELS).fillna(raw["source"])
+    raw["source_key"]      = raw["source"]
+    raw["source_location"] = raw["source_key"].map(SOURCE_LOCATIONS).fillna("Unknown")
+    raw["source"]          = raw["source_key"].map(SOURCE_LABELS).fillna(raw["source_key"])
 
     intl_urls = set(raw.loc[raw["state"].isin(INTL_STATES), "tour_url"])
     days = raw[~raw["tour_url"].isin(intl_urls)].copy()
@@ -70,11 +71,14 @@ def load_data():
     tours = (
         days.groupby("tour_url", as_index=False)
         .agg(
-            tour_name  = ("tour_name",  "first"),
-            source     = ("source",     "first"),
-            total_days = ("total_days", "first"),
-            states     = ("state",      _au_states),
-            cities     = ("city",       _cities),
+            tour_name       = ("tour_name",       "first"),
+            source          = ("source",          "first"),
+            source_key      = ("source_key",      "first"),
+            source_location = ("source_location", "first"),
+            source_type     = ("source_type",     "first"),
+            total_days      = ("total_days",      "first"),
+            states          = ("state",           _au_states),
+            cities          = ("city",            _cities),
         )
     )
 
@@ -190,6 +194,16 @@ def main():
 
     tours, days = load_data()
 
+    tab_finder, tab_sources = st.tabs(["Tour Finder", "Sources"])
+
+    with tab_finder:
+        render_tour_finder(tours, days)
+
+    with tab_sources:
+        render_sources_tab(tours, days)
+
+
+def render_tour_finder(tours: pd.DataFrame, days: pd.DataFrame) -> None:
     # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
         st.markdown("## 🇦🇺 Tour Finder")
@@ -371,6 +385,42 @@ def main():
         if p_next.button("Next →", disabled=(page == total_pages - 1), use_container_width=True):
             st.session_state["_page"] = page + 1
             st.rerun()
+
+
+def render_sources_tab(tours: pd.DataFrame, days: pd.DataFrame) -> None:
+    st.markdown("# Sources")
+
+    m1, m2 = st.columns(2)
+    m1.metric("Sources", tours["source_key"].nunique())
+    m2.metric("Total Tours", len(tours))
+
+    st.divider()
+
+    by_source = (
+        tours.groupby(["source", "source_location", "source_type"], dropna=False, as_index=False)
+        .agg(tours=("tour_url", "nunique"))
+    )
+    by_source["day_rows"] = by_source["source"].map(
+        days.groupby("source")["tour_url"].count()
+    ).fillna(0).astype(int)
+    by_source = by_source.sort_values("tours", ascending=False).reset_index(drop=True)
+    by_source.columns = ["Source", "Location", "Type", "Tours", "Day Rows"]
+
+    st.markdown("### Tours per source")
+    st.bar_chart(by_source.set_index("Source")["Tours"])
+
+    st.dataframe(
+        by_source,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Source":   st.column_config.TextColumn("Source",   width="medium"),
+            "Location": st.column_config.TextColumn("Location", width="small"),
+            "Type":     st.column_config.TextColumn("Type",     width="small"),
+            "Tours":    st.column_config.NumberColumn("Tours",    width="small", format="%d"),
+            "Day Rows": st.column_config.NumberColumn("Day Rows", width="small", format="%d"),
+        },
+    )
 
 
 if __name__ == "__main__":

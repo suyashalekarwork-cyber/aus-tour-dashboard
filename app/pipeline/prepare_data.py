@@ -10,7 +10,8 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).parent.parent   # the app/ folder
-CSV_PATH = r'C:\Users\SuyashA\Desktop\Itinenaries_analysis\data\keywords\keyword_dataset_2026-06.csv'
+REPO_ROOT = ROOT.parent
+CSV_PATH = str(REPO_ROOT / 'data' / 'keywords' / 'keyword_dataset_2026-06.csv')
 OUT_PATH  = str(ROOT / 'frontend' / 'data.js')
 CORRECTIONS_PATH = ROOT / 'frontend' / 'token_corrections.json'
 
@@ -135,14 +136,6 @@ def is_noise(name):
     return name.lower() in _GEO_NOISE
 
 
-def majority_state(tour_url, df_all):
-    """Return the state that has the most rows for this tour_url."""
-    rows = df_all[df_all['tour_url'] == tour_url]
-    if rows.empty:
-        return None
-    return rows['state'].value_counts().idxmax()
-
-
 def url_slug(url):
     """Last meaningful path segment of a URL (no extension, no query)."""
     s = re.sub(r'[?#].*$', '', str(url)).rstrip('/')
@@ -199,24 +192,18 @@ def build():
     else:
         print('  No token corrections file found — using raw tokens.')
 
-    # Pre-compute majority state per tour (keyed by URL — the unique itinerary)
-    # to filter out cross-state tours.
-    tour_majority_state = {
-        u: majority_state(u, df)
-        for u in df['tour_url'].unique()
-    }
-
-    result = {}
+    # ── per-state product catalogs ─────────────────────────────────────────
+    # A product's popularity/board-op status is still meaningfully scoped to
+    # a single state's market, so this stays a per-state pass.
+    state_products = {}   # state_key -> {name: {...}}
+    state_cities   = {}   # state_key -> {name: city}
 
     for state_key in STATE_ORDER:
-        state_df = df[df['state'] == state_key].copy()
+        state_df = df[df['state'] == state_key]
         if state_df.empty:
             continue
+        state_name, _ = STATE_META[state_key]
 
-        state_name, state_abbr = STATE_META[state_key]
-
-        # ── product catalog ────────────────────────────────────────────────
-        # Track tour sets separately for board vs competitor (for pop scoring)
         prod_comp_tours  = defaultdict(set)   # competitor tours per product
         prod_board_tours = defaultdict(set)   # board docs per product
         prod_themes      = defaultdict(set)
@@ -262,113 +249,144 @@ def build():
             best_city = prod_cities[name].most_common(1)
             cities[name] = best_city[0][0] if best_city else state_name
 
-        # ── templates ──────────────────────────────────────────────────────
-        # One template = one scraped itinerary = one tour_url. Grouping by URL
-        # (not tour_name) keeps distinct tours that share a name separate and
-        # prevents their days being concatenated into a frankenstein itinerary.
-        # Only include itineraries whose majority state is this state.
-        state_urls = [
-            u for u in state_df['tour_url'].unique()
-            if tour_majority_state.get(u) == state_key
-        ]
+        state_products[state_key] = products
+        state_cities[state_key]   = cities
 
-        competitor_tmpls = []
-        board_tmpls      = []
+    # ── templates: one global pass across every tour_url ──────────────────
+    # One template = one scraped itinerary = one tour_url. Grouping by URL
+    # (not tour_name) keeps distinct tours that share a name separate and
+    # prevents their days being concatenated into a frankenstein itinerary.
+    # Built once globally (not per state_key) so cross-state tours keep every
+    # day's real state instead of being collapsed into a single "home" state.
+    competitor_tmpls = []
+    board_tmpls      = []
 
-        for tour_url in state_urls:
-            tour_df = state_df[state_df['tour_url'] == tour_url].sort_values('day_number')
+    for tour_url in df['tour_url'].unique():
+        if not tour_url:
+            continue
+        tour_df = df[df['tour_url'] == tour_url].sort_values('day_number')
 
-            is_board_tour = tour_df['_is_board'].sum() > len(tour_df) / 2
-            tmpl_type     = 'Board' if is_board_tour else 'Competitor'
-            src_val       = tour_df['source'].iloc[0]
-            src_display   = re.sub(r'^https?://(www\.)?', '', str(src_val)).split('/')[0]
+        is_board_tour = tour_df['_is_board'].sum() > len(tour_df) / 2
+        tmpl_type     = 'Board' if is_board_tour else 'Competitor'
+        src_val       = tour_df['source'].iloc[0]
+        src_display   = re.sub(r'^https?://(www\.)?', '', str(src_val)).split('/')[0]
 
-            # Display name: use the scraped tour_name when the URL has a single
-            # consistent name; fall back to a title derived from the URL slug
-            # when the name varies per day (e.g. australia.com board pages).
-            names = [str(n).strip() for n in tour_df['tour_name'].unique() if str(n).strip()]
-            tour_name = names[0] if len(names) == 1 else title_from_url(tour_url)
+        # Display name: use the scraped tour_name when the URL has a single
+        # consistent name; fall back to a title derived from the URL slug
+        # when the name varies per day (e.g. australia.com board pages).
+        names = [str(n).strip() for n in tour_df['tour_name'].unique() if str(n).strip()]
+        tour_name = names[0] if len(names) == 1 else title_from_url(tour_url)
 
-            # Build each day as a structured object the builder can render
-            # directly: the base/heading (title), the genuine places to visit
-            # (Gemini-extracted, with the title name not repeated), the day's
-            # themes (shown in their own row), and the scraped "What You'll Do"
-            # description (context / safety net for anything not chipped).
-            days   = []
-            themes = set()
-            for _, day_row in tour_df.iterrows():
-                title  = clean_title(day_row['location'], day_row['city'])
-                places = day_places(day_row['_prods'], title)
-                if not title and not places:
+        # Build each day as a structured object the builder can render
+        # directly: the base/heading (title), the genuine places to visit
+        # (Gemini-extracted, with the title name not repeated), the day's
+        # themes (shown in their own row), the day's own state (a tour can
+        # cross states), and the scraped "What You'll Do" description
+        # (context / safety net for anything not chipped).
+        days   = []
+        themes = set()
+        for _, day_row in tour_df.iterrows():
+            title  = clean_title(day_row['location'], day_row['city'])
+            places = day_places(day_row['_prods'], title)
+            if not title and not places:
+                continue
+            dthemes = [t for t in THEMES if t in day_row['_themes']]
+            desc    = str(day_row['activity']).strip()
+            raw_city  = '' if (day_row['city'] is None or isinstance(day_row['city'], float)) else str(day_row['city']).strip()
+            raw_state = '' if (day_row['state'] is None or isinstance(day_row['state'], float)) else str(day_row['state']).strip()
+            days.append({'title': title, 'city': raw_city, 'state': raw_state,
+                         'places': places, 'themes': dthemes, 'desc': desc})
+            themes.update(day_row['_themes'])
+
+        if not days:
+            continue
+
+        # Only keep genuine multi-stop routes. Movement is judged on the
+        # day title (the base), so a tour that sits in one city the whole
+        # time (or one city then jumps to another) is filtered out.
+        primaries = [d['title'] or (d['places'][0] if d['places'] else '')
+                     for d in days]
+        distinct_stops = {p for p in primaries if p}
+        if len(days) < 2 or len(distinct_stops) < 2:
+            continue
+        transitions = sum(
+            1 for i in range(1, len(primaries)) if primaries[i] != primaries[i - 1]
+        )
+        if transitions < max(1, len(days) // 3):
+            continue
+
+        states_touched = []
+        for d in days:
+            if d['state'] and d['state'] not in states_touched:
+                states_touched.append(d['state'])
+        if not states_touched:
+            continue
+
+        # Popularity bar stays driven by place_tags product popularity,
+        # resolved against each product's *own* day's state catalog (a
+        # product can appear in more than one state's catalog under
+        # different popularity numbers for a cross-state tour).
+        pop = 0
+        for d in days:
+            prods_for_state = state_products.get(d['state'], {})
+            for p in d['places']:
+                info = prods_for_state.get(p)
+                if not info:
                     continue
-                dthemes = [t for t in THEMES if t in day_row['_themes']]
-                desc    = str(day_row['activity']).strip()
-                raw_city = '' if (day_row['city'] is None or isinstance(day_row['city'], float)) else str(day_row['city']).strip()
-                days.append({'title': title, 'city': raw_city, 'places': places,
-                             'themes': dthemes, 'desc': desc})
-                themes.update(day_row['_themes'])
+                pop = max(pop, info['board_pop'] if is_board_tour else info['comp_pop'])
 
-            if not days:
-                continue
+        entry = {
+            'name':           tour_name,
+            'source':         src_display,
+            'sourceLocation': source_location_map.get(str(tour_df['source'].iloc[0]), 'Unknown'),
+            'type':           tmpl_type,
+            'pop':            pop,
+            'url':            tour_url,
+            'themes':         [t for t in THEMES if t in themes],
+            'states':         states_touched,
+            'days':           days,
+        }
+        if is_board_tour:
+            board_tmpls.append(entry)
+        else:
+            competitor_tmpls.append(entry)
 
-            # Only keep genuine multi-stop routes. Movement is judged on the
-            # day title (the base), so a tour that sits in one city the whole
-            # time (or one city then jumps to another) is filtered out.
-            primaries = [d['title'] or (d['places'][0] if d['places'] else '')
-                         for d in days]
-            distinct_stops = {p for p in primaries if p}
-            if len(days) < 2 or len(distinct_stops) < 2:
-                continue
-            transitions = sum(
-                1 for i in range(1, len(primaries)) if primaries[i] != primaries[i - 1]
-            )
-            if transitions < max(1, len(days) // 3):
-                continue
+    # Disambiguate display names: because every URL is kept as its own
+    # template, two distinct itineraries can share a name. Append a short
+    # hint from the URL slug to any name used by more than one template so
+    # the siblings are distinguishable on their cards.
+    name_counts = Counter(t['name'] for t in competitor_tmpls + board_tmpls)
+    for t in competitor_tmpls + board_tmpls:
+        if name_counts[t['name']] > 1:
+            hint = url_slug(t['url'])
+            if hint:
+                t['name'] = t['name'] + ' · ' + hint
 
-            # Popularity bar stays driven by place_tags product popularity
-            all_p = [p for d in tour_df['_prods'] for p in d]
-            if is_board_tour:
-                pop = max((products[p]['board_pop'] for p in all_p if p in products), default=0)
-            else:
-                pop = max((products[p]['comp_pop'] for p in all_p if p in products), default=0)
+    # Sort each group: longer tours first, then by pop
+    competitor_tmpls.sort(key=lambda t: (-len(t['days']), -t['pop']))
+    board_tmpls.sort(key=lambda t:      (-len(t['days']), -t['pop']))
 
-            entry = {
-                'name':           tour_name,
-                'source':         src_display,
-                'sourceLocation': source_location_map.get(str(tour_df['source'].iloc[0]), 'Unknown'),
-                'type':           tmpl_type,
-                'pop':            pop,
-                'url':            tour_url,
-                'themes':         [t for t in THEMES if t in themes],
-                'days':           days,
-            }
-            if is_board_tour:
-                board_tmpls.append(entry)
-            else:
-                competitor_tmpls.append(entry)
+    # Competitors first, then board — this is the single source of truth for
+    # every template; per-state buckets below are filtered views of it.
+    all_templates = competitor_tmpls + board_tmpls
 
-        # Disambiguate display names: because every URL is kept as its own
-        # template, two distinct itineraries can share a name. Append a short
-        # hint from the URL slug to any name used by more than one template so
-        # the siblings are distinguishable on their cards.
-        name_counts = Counter(t['name'] for t in competitor_tmpls + board_tmpls)
-        for t in competitor_tmpls + board_tmpls:
-            if name_counts[t['name']] > 1:
-                hint = url_slug(t['url'])
-                if hint:
-                    t['name'] = t['name'] + ' · ' + hint
+    result = {}
 
-        # Sort each group: longer tours first, then by pop
-        competitor_tmpls.sort(key=lambda t: (-len(t['days']), -t['pop']))
-        board_tmpls.sort(key=lambda t:      (-len(t['days']), -t['pop']))
+    for state_key in STATE_ORDER:
+        state_df = df[df['state'] == state_key]
+        if state_df.empty:
+            continue
 
-        # Competitors first, then board
-        templates = competitor_tmpls + board_tmpls
+        state_name, state_abbr = STATE_META[state_key]
+        products = state_products.get(state_key, {})
+        cities   = state_cities.get(state_key, {})
+
+        templates = [t for t in all_templates if state_key in t['states']]
 
         # Remove internal tracking fields from products before output
         for name in products:
-            del products[name]['comp_pop']
-            del products[name]['board_pop']
+            products[name].pop('comp_pop', None)
+            products[name].pop('board_pop', None)
 
         # ── full dataset (every scraped day-row, for the data review screen) ─
         # The Tagged Data view shows the real, transparent day-level asset:
@@ -407,7 +425,7 @@ def build():
             'templates': templates,
         }
 
-    return result
+    return result, all_templates
 
 
 _DATA_MODULE_UTILS = r"""
@@ -415,6 +433,7 @@ const _SK = 'au_itinerary_corrections';
 window.DATA_MODULE = {
   THEMES: THEMES,
   CATALOG: DATA,
+  TEMPLATES: TEMPLATES,
   STORAGE_KEY: _SK,
   loadCorrections() {
     try { return JSON.parse(localStorage.getItem(_SK) || '{}'); } catch(e) { return {}; }
@@ -462,6 +481,20 @@ window.DATA_MODULE = {
     }
     return result;
   },
+  resolveTemplates(corrections) {
+    if (!corrections || !Object.keys(corrections).length) return TEMPLATES;
+    const self = this;
+    return TEMPLATES.map(t => {
+      const nd = (t.days || []).map(day => {
+        const arr = [];
+        (day.places || []).forEach(p => {
+          self.rewriteName(day.state, p, corrections).forEach(r => { if (!arr.includes(r)) arr.push(r); });
+        });
+        return Object.assign({}, day, { places: arr });
+      });
+      return Object.assign({}, t, { days: nd });
+    });
+  },
   allTokens() {
     const T = window.TOKENS;
     if (!T) return [];
@@ -494,12 +527,13 @@ window.DATA_MODULE = {
 
 def main():
     print('Reading dataset...')
-    data = build()
+    data, all_templates = build()
 
     print('Writing data.js...')
     themes_js = 'const THEMES = ' + json.dumps(THEMES, ensure_ascii=False) + ';\n'
     data_js   = 'const DATA = '   + json.dumps(data,   ensure_ascii=False, indent=2) + ';\n'
-    js = themes_js + data_js + _DATA_MODULE_UTILS
+    tmpl_js   = 'const TEMPLATES = ' + json.dumps(all_templates, ensure_ascii=False, indent=2) + ';\n'
+    js = themes_js + data_js + tmpl_js + _DATA_MODULE_UTILS
     with open(OUT_PATH, 'w', encoding='utf-8') as f:
         f.write(js)
 
@@ -512,13 +546,12 @@ def main():
               f'{len(sd["allRows"])} data rows, '
               f'seed={sd["seed"]["tourName"]!r}')
 
-    total_tours = sum(len(sd['templates'])       for sd in data.values())
-    total_prods = sum(len(sd['products'])         for sd in data.values())
-    total_days  = sum(
-        sum(len(t['days']) for t in sd['templates']) for sd in data.values()
-    )
-    total_rows = sum(len(sd['allRows']) for sd in data.values())
-    print(f'\nSidebar stats: {total_tours} tours  {total_prods} products  {total_days} day rows')
+    multi_state = sum(1 for t in all_templates if len(t['states']) > 1)
+    total_prods = sum(len(sd['products']) for sd in data.values())
+    total_days  = sum(len(t['days']) for t in all_templates)
+    total_rows  = sum(len(sd['allRows']) for sd in data.values())
+    print(f'\nSidebar stats: {len(all_templates)} tours ({multi_state} multi-state)  '
+          f'{total_prods} products  {total_days} day rows')
     print(f'Full review dataset: {total_rows} scraped day-rows')
 
 

@@ -27,7 +27,7 @@ combine them into one day-level dataset, tag each day with places/activities/the
 and explore the result in Streamlit dashboards. The business goal is to assemble our
 own competitive itineraries informed by what boards promote vs. what operators actually
 sell. See `README.md` (overview), `PIPELINE.md` (exact file-by-file data flow), and
-`CONTEXT.md` (business framing + the downstream "Build and Explore" PM tools).
+`CONTEXT.md` (business framing + the downstream `app/` Itinerary Builder PM tool).
 
 ## Commands
 
@@ -55,6 +55,13 @@ python analysis/export_competitors.py         # competitor itineraries → manag
 # Dashboards
 streamlit run analysis/dashboard.py    # data explorer over the master dataset
 cd product_app && streamlit run app.py # "experiences → products" prototype (see product_app/)
+
+# Itinerary Builder PM tool (app/) — local server, then open http://localhost:8765
+python app/server/server.py
+
+# Share the Builder with a remote PM (bundled Cloudflare tunnel, no account needed)
+python app/server/go_live.py   # starts server.py + cloudflared.exe, writes a share link + creds file
+# Link changes every run — re-share it each time. Don't hand-roll a separate tunnel; this script exists.
 
 # Geo extraction: ground itinerary places to real Australian locations
 python analysis/geo_extract_experiment.py --backend ollama  # free, local (qwen2.5:7b), slow (~8–12 hrs for 9k rows)
@@ -144,6 +151,11 @@ Key structural facts a new contributor needs:
 - **`product_app/` is a separate prototype**, not part of the main pipeline. It's an
   "experiences → products" builder (`streamlit run product_app/app.py`) with its own
   dependency on the keyword dataset. Sanity-check with `python product_app/smoke_test.py`.
+- **`app/` is the PM-facing Itinerary Builder**, downstream of the keyword dataset. It's a
+  single-file React app (`app/frontend/builder.html`, no build step) served locally by
+  `app/server/server.py` (`python app/server/server.py` → http://localhost:8765). Data prep
+  scripts live in `app/pipeline/` (`prepare_all.py` regenerates `data.js`/`tokens.js` from
+  the latest keyword dataset). See `CONTEXT.md` for the tool's tabs and data flow.
 
 ## The two final datasets
 
@@ -167,9 +179,16 @@ are the signal; exclude hotels; sequential day numbering.
 - `webscraping/` working dirs and generated `*.xlsx` are git-ignored — the repo tracks code and
   processed `data/` outputs, not raw scrape working state.
 - `_archive/` is a legacy snapshot dir — do not edit.
-- `Build and explore/` and `Build and explore New/` are prototype dirs being removed from the repo.
+- The old `Build and explore/` and `Build and explore New/` prototype dirs have been removed;
+  the Itinerary Builder now lives permanently at `app/` (see above).
 - The active pipeline is the top-level `run_pipeline.py` + `analysis/` + `webscraping/` flow.
 - `ROADMAP.md` tracks the 13-week project timeline (June–August 2026) — read it for phase/priority context.
+- **Templates in `app/` are multi-state.** `app/pipeline/prepare_data.py` builds one global
+  `TEMPLATES` list per tour (not per-state buckets); each template carries `states: [...]`
+  since a scraped tour can span multiple Australian states. See `PIPELINE.md`/`CONTEXT.md`.
+- **Hiding a Builder nav tab without deleting it:** `app/frontend/builder.html` has a
+  `HIDDEN_TABS` array (near the `NAV` definition) — add a tab's key there to hide it from
+  the sidebar while keeping its code and data intact for later.
 
 
 
