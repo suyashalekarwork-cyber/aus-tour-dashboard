@@ -154,6 +154,10 @@ def title_from_url(url):
 
 SOURCE_LOCATIONS_PATH = Path(__file__).parent.parent.parent / 'data' / 'config' / 'source_locations.csv'
 
+# Sources temporarily excluded from the Builder/Consumer Analysis pipeline
+# (scraper + raw data untouched — just kept out of data.js/market.js).
+EXCLUDED_SOURCES = {'g_adventures'}
+
 
 def _load_source_location_map():
     if not SOURCE_LOCATIONS_PATH.exists():
@@ -165,6 +169,7 @@ def _load_source_location_map():
 def build():
     source_location_map = _load_source_location_map()
     df = pd.read_csv(CSV_PATH, low_memory=False)
+    df = df[~df['source'].isin(EXCLUDED_SOURCES)]
 
     df['place_tags']  = df['place_tags'].fillna('')
     df['theme_tags']  = df['theme_tags'].fillna('')

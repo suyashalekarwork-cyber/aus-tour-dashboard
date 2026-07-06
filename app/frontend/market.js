@@ -10624,7 +10624,7 @@ window.MARKET_DATA = [
     "tour_name": "Australian Extravaganza - Summer 2026",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -12760,7 +12760,7 @@ window.MARKET_DATA = [
     "tour_name": "Australian Extravaganza With Scenic New Zealand - Summer 2026",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -14731,7 +14731,7 @@ window.MARKET_DATA = [
     "tour_name": "Grand Bargain Australia - Summer 2026",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -15091,7 +15091,7 @@ window.MARKET_DATA = [
     "tour_name": "Ananyo Australia - Durga Puja Special",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -16731,7 +16731,7 @@ window.MARKET_DATA = [
     "tour_name": "Grand Bargain Australia With Scenic New Zealand - Summer 2026",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -17814,7 +17814,7 @@ window.MARKET_DATA = [
     "tour_name": "Best Of New South Wales - Self Drive Special",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "NSW",
     "states": [
       "NSW"
@@ -18980,7 +18980,7 @@ window.MARKET_DATA = [
     "tour_name": "Amazing Queensland With Hamilton Island",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "QLD",
     "states": [
       "QLD"
@@ -19249,7 +19249,7 @@ window.MARKET_DATA = [
     "tour_name": "Panoramic New South Wales : Self-Drive Special",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "NSW",
     "states": [
       "NSW"
@@ -20361,7 +20361,7 @@ window.MARKET_DATA = [
     "tour_name": "Iconic New South Wales : Self-Drive Special",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "NSW",
     "states": [
       "NSW"
@@ -21266,7 +21266,7 @@ window.MARKET_DATA = [
     "tour_name": "Go Beyond Melbourne · go-beyond-melbourne",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC"
@@ -21333,7 +21333,7 @@ window.MARKET_DATA = [
     "tour_name": "Melbourne Surrounds · melbourne-surrounds",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC"
@@ -23194,7 +23194,7 @@ window.MARKET_DATA = [
     "tour_name": "Magical Queensland · magical-queensland",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "QLD",
     "states": [
       "QLD"
@@ -25100,7 +25100,7 @@ window.MARKET_DATA = [
     "tour_name": "Awesome Adelaide · awesome-adelaide",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "SA",
     "states": [
       "SA"
@@ -25240,7 +25240,7 @@ window.MARKET_DATA = [
     "tour_name": "Adelaide Surround · adelaide-surround",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "VIC",
     "states": [
       "VIC",
@@ -26068,7 +26068,7 @@ window.MARKET_DATA = [
     "tour_name": "Brisbane To Sunshine Coast (Self Drive)",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "QLD",
     "states": [
       "QLD"
@@ -26727,7 +26727,7 @@ window.MARKET_DATA = [
     "tour_name": "Vivid Sydney with Hunter Valley",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "NSW",
     "states": [
       "NSW"
@@ -26761,7 +26761,7 @@ window.MARKET_DATA = [
     "tour_name": "Vivid Sydney with Blue Mountain",
     "source": "thomas_cook",
     "source_type": "Competitor",
-    "market": "UK",
+    "market": "India",
     "state": "NSW",
     "states": [
       "NSW"
