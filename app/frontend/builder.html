@@ -1688,10 +1688,11 @@ function App(){
   function _builderShared(){
     const active = days[activeDay] || {products:[]};
     const sugQ = (suggestSearch||'').toLowerCase().trim();
+    const tabEntries = suggestTab==='popular' ? cleanEntries : cleanEntries.filter(e=>e[1].board);
     let list;
-    if (sugQ) list = cleanEntries.filter(e=>e[0].toLowerCase().includes(sugQ)).sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
-    else if (suggestTab==='popular') list = cleanEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,24);
-    else list = cleanEntries.filter(e=>e[1].board).sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    if (sugQ) list = tabEntries.filter(e=>e[0].toLowerCase().includes(sugQ)).sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    else if (suggestTab==='popular') list = tabEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,24);
+    else list = tabEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
     const chipKind = suggestTab==='board'?'board':'prod';
     return {active, list, chipKind};
   }
@@ -1764,11 +1765,11 @@ function App(){
           <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px'}}>
             <div style={{display:'flex',borderBottom:'0.5px solid #e7e5e4'}}>
               {[['popular','Popular'],['board','Board']].map(([k,l])=>(
-                <div key={k} onClick={()=>setSuggestTab(k)} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
+                <div key={k} onClick={()=>{setSuggestTab(k);setSuggestSearch('');}} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
               ))}
             </div>
             <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
-              <input value={suggestSearch} onChange={e=>setSuggestSearch(e.target.value)} placeholder="Search products…" style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px'}}/>
+              <input value={suggestSearch} onChange={e=>setSuggestSearch(e.target.value)} placeholder="Search products..." style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px'}}/>
               <div style={{fontSize:'10px',color:'#a8a29e'}}>Adding to <b>Day {activeDay+1}</b></div>
               <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
                 {list.length? list.map(([name,info])=>{
@@ -1776,7 +1777,7 @@ function App(){
                   const elsewhere=(!onActive&&dayOf[name]!==undefined)?dayOf[name]:-1;
                   const inItin=onActive||elsewhere>=0;
                   return <span key={name} onClick={()=>toggleProduct(name)} title={onActive?'On this day — click to remove':(elsewhere>=0?('On Day '+(elsewhere+1)):'Add to Day '+(activeDay+1))} style={chip(chipKind,{cursor:'pointer',faded:inItin})}>{inItin?'✓':'+'} {name}</span>;
-                }) : <div style={{fontSize:'11px',color:'#a8a29e'}}>No products match.</div>}
+                }) : <div style={{fontSize:'11px',color:'#a8a29e'}}>No products match</div>}
               </div>
             </div>
           </div>
