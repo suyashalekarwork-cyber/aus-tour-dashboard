@@ -13,6 +13,7 @@ ROOT = Path(__file__).parent.parent   # the app/ folder
 REPO_ROOT = ROOT.parent
 CSV_PATH = str(REPO_ROOT / 'data' / 'keywords' / 'keyword_dataset_2026-06.csv')
 OUT_PATH  = str(ROOT / 'frontend' / 'data.js')
+MARKET_OUT_PATH = str(ROOT / 'frontend' / 'market.js')
 CORRECTIONS_PATH = ROOT / 'frontend' / 'token_corrections.json'
 
 THEMES = [
@@ -525,6 +526,49 @@ window.DATA_MODULE = {
 """
 
 
+def build_market_data(all_templates):
+    """One record per tour (deduped by name+source), for the Market
+    Intelligence tab. Derived from all_templates — no re-parsing of the CSV.
+    Deliberately excludes themes and price (unreliable / gappy per spec)."""
+    grouped = {}
+    for t in all_templates:
+        key = (t['name'], t['source'])
+        cities = []
+        for d in t['days']:
+            if d['city'] and d['city'] not in cities:
+                cities.append(d['city'])
+        products = []
+        for d in t['days']:
+            for p in d['places']:
+                if p not in products:
+                    products.append(p)
+        if key not in grouped:
+            grouped[key] = {
+                'tour_name':   t['name'],
+                'source':      t['source'],
+                'source_type': t['type'],
+                'market':      t['sourceLocation'],
+                'state':       t['states'][0] if t['states'] else '',
+                'states':      list(t['states']),
+                'city':        cities,
+                'total_days':  len(t['days']),
+                'products':    products,
+            }
+        else:
+            g = grouped[key]
+            g['total_days'] = max(g['total_days'], len(t['days']))
+            for c in cities:
+                if c not in g['city']:
+                    g['city'].append(c)
+            for p in products:
+                if p not in g['products']:
+                    g['products'].append(p)
+            for s in t['states']:
+                if s not in g['states']:
+                    g['states'].append(s)
+    return list(grouped.values())
+
+
 def main():
     print('Reading dataset...')
     data, all_templates = build()
@@ -536,6 +580,13 @@ def main():
     js = themes_js + data_js + tmpl_js + _DATA_MODULE_UTILS
     with open(OUT_PATH, 'w', encoding='utf-8') as f:
         f.write(js)
+
+    print('Writing market.js...')
+    market_data = build_market_data(all_templates)
+    market_js = 'window.MARKET_DATA = ' + json.dumps(market_data, ensure_ascii=False, indent=2) + ';\n'
+    with open(MARKET_OUT_PATH, 'w', encoding='utf-8') as f:
+        f.write(market_js)
+    print(f'  {len(market_data)} tours in market.js')
 
     print('\nDone!')
     for sk, sd in data.items():

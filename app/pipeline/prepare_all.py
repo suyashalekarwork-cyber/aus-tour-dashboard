@@ -20,6 +20,13 @@ def main():
     prepare_data.CORRECTIONS_PATH = NEW_DIR / 'token_corrections.json'
     data, all_templates = prepare_data.build()
 
+    print('[prepare_all] Writing market.js...')
+    market_data = prepare_data.build_market_data(all_templates)
+    (NEW_DIR / 'market.js').write_text(
+        'window.MARKET_DATA = ' + json.dumps(market_data, ensure_ascii=False, indent=2) + ';\n',
+        encoding='utf-8',
+    )
+
     records = prepare_tokens.build()
 
     # Merge issue flag into each product from the token analysis
@@ -29,7 +36,7 @@ def main():
             tok = tok_by_name.get(prod_name)
             prod_info['issue'] = tok['issue'] if tok else None
 
-    print(f'[prepare_all] Writing catalog.js → {CATALOG_OUT}')
+    print(f'[prepare_all] Writing catalog.js -> {CATALOG_OUT}')
     CATALOG_OUT.write_text(
         'export const THEMES = ' + json.dumps(prepare_data.THEMES, ensure_ascii=False) + ';\n\n'
         'export const CATALOG = ' + json.dumps(data, ensure_ascii=False, indent=2) + ';\n\n'
