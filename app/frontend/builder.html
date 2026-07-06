@@ -1052,8 +1052,18 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
                       const intensity = count? 0.15 + 0.75*(count/rowMax) : 0;
                       return (
                         <td key={s} onClick={()=>{
-                              if (isBoardsRow) setTypeFilter(prev=>prev==='Board'?'all':'Board'); else toggleMarket(row);
-                              toggleState(s);
+                              // Cell click sets BOTH dimensions to exactly this row+column
+                              // (replace, not toggle) so the table always matches the cell
+                              // count — toggling into whatever arrays were already selected
+                              // let stale market/state selections leak into the result.
+                              if (isBoardsRow){
+                                setTypeFilter('Board');
+                                setMarketFilter([]);
+                              } else {
+                                setTypeFilter('all');
+                                setMarketFilter([row]);
+                              }
+                              setStateFilter([s]);
                             }}
                           style={{padding:'6px 4px',textAlign:'center',cursor:'pointer',fontSize:'12px',fontWeight:count?700:400,
                             minWidth:'56px',borderRadius:'5px',
@@ -1393,6 +1403,7 @@ function App(){
   const [suggestTab, setSuggestTab] = useState('popular');
   const [suggestSearch, setSuggestSearch] = useState('');
   const [sourcePopup, setSourcePopup] = useState(null); // product name currently showing its source popup, or null
+  const [coverageOpen, setCoverageOpen] = useState(false);
   const [themeInputs, setThemeInputs] = useState({});
 
   // ---- templates tab filters (operate on the global cross-state template list) ----
@@ -1787,7 +1798,55 @@ function App(){
             </div>);
           })}
           <div onClick={addDay} style={{textAlign:'center',padding:'10px',borderRadius:'10px',border:'1px dashed #d6d3d1',color:'#57534e',fontSize:'12px',fontWeight:600,cursor:'pointer',background:'#fafaf9'}}>+ Add day</div>
+          {renderSourceCoverage()}
         </div>);
+  }
+
+  function renderSourceCoverage(){
+    const allSources = window.MARKET_DATA || [];
+    const totalCompSources  = new Set(allSources.filter(t=>t.source_type==='Competitor').map(t=>t.source)).size;
+    const totalBoardSources = new Set(allSources.filter(t=>t.source_type!=='Competitor').map(t=>t.source)).size;
+    const totalAllSources   = totalCompSources + totalBoardSources;
+
+    const uniqueProducts = [...new Set(days.flatMap(d=>d.products))];
+    const rows = uniqueProducts.map(name=>{
+      const info = productSourceMap[name] || {competitors:[], boards:[]};
+      const compN = info.competitors.length, boardN = info.boards.length;
+      return {name, compN, boardN, total: compN + boardN};
+    }).sort((a,b)=>b.total-a.total);
+
+    return (
+      <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',overflow:'hidden'}}>
+        <div onClick={()=>setCoverageOpen(o=>!o)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer'}}>
+          <div style={{fontSize:'12px',fontWeight:700,color:'#1c1917'}}>Source coverage {uniqueProducts.length ? `(${uniqueProducts.length} products)` : ''}</div>
+          <div style={{fontSize:'11px',color:'#a8a29e'}}>{coverageOpen ? '▲' : '▼'}</div>
+        </div>
+        {coverageOpen && (
+          <div style={{borderTop:'0.5px solid #e7e5e4',padding:'10px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
+            {rows.length === 0 ? (
+              <div style={{fontSize:'11px',color:'#a8a29e'}}>Add products to your itinerary to see source coverage</div>
+            ) : rows.map(r=>{
+              const pct = totalAllSources ? Math.round((r.total/totalAllSources)*100) : 0;
+              const zero = r.total === 0;
+              return (
+                <div key={r.name} style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                  <div style={{fontSize:'11px',color:'#1c1917',flex:'0 0 150px',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={r.name}>{r.name}</div>
+                  <div style={{flex:'1 1 auto',minWidth:0}}><Bar pct={pct} color={zero?'#d6d3d1':'#185FA5'}/></div>
+                  {zero ? (
+                    <div style={{fontSize:'10px',color:'#a8a29e',flexShrink:0,whiteSpace:'nowrap'}}>0 comp · 0 board</div>
+                  ) : (
+                    <div style={{display:'flex',gap:'4px',flexShrink:0}}>
+                      <span style={chip('prod',{small:true})}>{r.compN} comp</span>
+                      <span style={chip('theme',{small:true})}>{r.boardN} board</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
   function renderBuilderPanel(){
     const {active, list, chipKind} = _builderShared();
