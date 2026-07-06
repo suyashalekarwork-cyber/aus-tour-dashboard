@@ -1403,7 +1403,6 @@ function App(){
   const [suggestTab, setSuggestTab] = useState('popular');
   const [suggestSearch, setSuggestSearch] = useState('');
   const [sourcePopup, setSourcePopup] = useState(null); // product name currently showing its source popup, or null
-  const [coverageOpen, setCoverageOpen] = useState(false);
   const [themeInputs, setThemeInputs] = useState({});
 
   // ---- templates tab filters (operate on the global cross-state template list) ----
@@ -1504,7 +1503,7 @@ function App(){
 
   // ---- helpers ----
   const cityOf = (name) => (cur.cities && cur.cities[name]) || cur.name;
-  const blankDay = () => ({location:'',city:'',desc:'',products:[],customThemes:[],removedThemes:[]});
+  const blankDay = () => ({location:'',city:'',desc:'',title:'',products:[],customThemes:[],removedThemes:[]});
 
   function seedDays(c){
     const s = c.seed || {tourName:'',duration:5,days:[]};
@@ -1555,6 +1554,10 @@ function App(){
     setDays(prev=>{ const a=[...prev, blankDay()]; setDuration(a.length); return a; });
     setActiveDay(days.length);
   };
+  const clearAll = ()=>{
+    if(!window.confirm('Are you sure? This will remove all days and products.')) return;
+    setTourName(''); setTourUrl(''); setTourSource(''); setDuration(1); setDays([blankDay()]); setActiveDay(0);
+  };
   const removeDay = (i)=>{
     setDays(prev=>{
       if (prev.length<=1) return prev;
@@ -1576,6 +1579,7 @@ function App(){
   };
   const setLocation = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,location:val}:d));
   const setDesc     = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,desc:val}:d));
+  const setDayTitle = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,title:val}:d));
   const toggleProduct = (name)=> setDays(prev=>prev.map((d,k)=>{
     if(k!==activeDay) return d;
     const has=d.products.includes(name);
@@ -1595,7 +1599,7 @@ function App(){
     // A tour can cross states; each day resolves its city name against its own
     // day-state's catalog (not the Builder's currently-selected state).
     const d = (t.days||[]).map(x=>({
-      location: x.title||'', city: x.title||cityOfIn(x.state, (x.places||[])[0])||'', desc:x.desc||'',
+      location: '', city: x.title||cityOfIn(x.state, (x.places||[])[0])||'', desc:x.desc||'',
       products:[...(x.places||[])], customThemes:[], removedThemes:[]
     }));
     // The Builder itself stays single-state per session — seed it with the
@@ -1605,7 +1609,7 @@ function App(){
     // (triggered by setStateKey or initial mount) never wins over our data.
     setView('builder');
     setStateKey(targetState);
-    setTimeout(()=>{ setTourName(t.name||''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); }, 0);
+    setTimeout(()=>{ setTourName(''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); }, 0);
     showToast('Loaded template · '+(t.name||''));
   }
 
@@ -1622,14 +1626,14 @@ function App(){
     const payload = {
       id: stateKey+'_'+safe+'_'+ts, name: tourName||'Untitled', state: stateKey, duration,
       savedAt: new Date().toISOString().slice(0,19),
-      days: days.map(d=>({location:d.location||'', products:[...(d.products||[])], themes:dayThemesDisplay(d), customThemes:d.customThemes||[], removedThemes:d.removedThemes||[], desc:d.desc||''}))
+      days: days.map(d=>({location:d.location||'', title:d.title||'', products:[...(d.products||[])], themes:dayThemesDisplay(d), customThemes:d.customThemes||[], removedThemes:d.removedThemes||[], desc:d.desc||''}))
     };
     try { const r = await fetch('/itineraries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok) throw new Error(); showToast('Itinerary saved — '+payload.name); }
     catch(e){ showToast('Save failed — is the server running?'); }
   }
   function loadSavedItinerary(itin){
-    const d = (itin.days||[]).map(x=>({location:x.location||'',city:'',desc:x.desc||'',products:[...(x.products||[])],customThemes:x.customThemes||[],removedThemes:x.removedThemes||[]}));
+    const d = (itin.days||[]).map(x=>({location:x.location||'',city:'',desc:x.desc||'',title:x.title||'',products:[...(x.products||[])],customThemes:x.customThemes||[],removedThemes:x.removedThemes||[]}));
     setStateKey(itin.state);
     // setStateKey triggers seed reset effect; override on next tick
     setTimeout(()=>{ setTourName(itin.name); setDuration(itin.duration); setDays(d); setActiveDay(0); }, 0);
@@ -1765,8 +1769,8 @@ function App(){
                 transition:'border-color .15s,opacity .15s,box-shadow .15s,transform .15s'}}>
               <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 12px',borderBottom:'0.5px solid #e7e5e4'}}>
                 <div title="Drag to reorder" style={{cursor:'grab',color:'#a8a29e',fontSize:'13px',lineHeight:1,userSelect:'none',padding:'2px'}}>⠿</div>
-                <div style={{borderRadius:'6px',padding:'2px 8px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',background:d.products.length?'#EAF3DE':'#f5f5f4',color:d.products.length?'#27500A':'#a8a29e'}}>Day {i+1}</div>
-                <input value={d.location} onChange={e=>setLocation(i,e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Add a location…" style={{border:'none',outline:'none',background:'transparent',fontSize:'12px',fontWeight:600,flex:1,minWidth:0}}/>
+                <div style={{borderRadius:'6px',padding:'2px 8px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',background:d.products.length?'#EAF3DE':'#f5f5f4',color:d.products.length?'#27500A':'#a8a29e'}}>{'Day '+(i+1)+(d.title&&d.title.trim()?' — '+d.title.trim():'')}</div>
+                <input value={d.title||''} onChange={e=>setDayTitle(i,e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Day title (optional)" style={{border:'none',outline:'none',background:'transparent',fontSize:'12px',color:'#57534e',flex:1,minWidth:0}}/>
                 <div onClick={e=>{e.stopPropagation(); if(days.length>1) removeDay(i);}} title={days.length>1?'Remove this day':'At least one day is required'}
                   style={{cursor:days.length>1?'pointer':'not-allowed',fontSize:'11px',color:days.length>1?'#8C2F1E':'#d6d3d1',padding:'3px 7px',borderRadius:'5px',background:'#FBE9E7',opacity:days.length>1?1:0.5,whiteSpace:'nowrap',flexShrink:0}}>Remove day</div>
               </div>
@@ -1798,7 +1802,6 @@ function App(){
             </div>);
           })}
           <div onClick={addDay} style={{textAlign:'center',padding:'10px',borderRadius:'10px',border:'1px dashed #d6d3d1',color:'#57534e',fontSize:'12px',fontWeight:600,cursor:'pointer',background:'#fafaf9'}}>+ Add day</div>
-          {renderSourceCoverage()}
         </div>);
   }
 
@@ -1817,34 +1820,31 @@ function App(){
 
     return (
       <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',overflow:'hidden'}}>
-        <div onClick={()=>setCoverageOpen(o=>!o)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer'}}>
+        <div style={{padding:'10px 14px',borderBottom:'0.5px solid #e7e5e4'}}>
           <div style={{fontSize:'12px',fontWeight:700,color:'#1c1917'}}>Source coverage {uniqueProducts.length ? `(${uniqueProducts.length} products)` : ''}</div>
-          <div style={{fontSize:'11px',color:'#a8a29e'}}>{coverageOpen ? '▲' : '▼'}</div>
         </div>
-        {coverageOpen && (
-          <div style={{borderTop:'0.5px solid #e7e5e4',padding:'10px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
-            {rows.length === 0 ? (
-              <div style={{fontSize:'11px',color:'#a8a29e'}}>Add products to your itinerary to see source coverage</div>
-            ) : rows.map(r=>{
-              const pct = totalAllSources ? Math.round((r.total/totalAllSources)*100) : 0;
-              const zero = r.total === 0;
-              return (
-                <div key={r.name} style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <div style={{fontSize:'11px',color:'#1c1917',flex:'0 0 150px',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={r.name}>{r.name}</div>
-                  <div style={{flex:'1 1 auto',minWidth:0}}><Bar pct={pct} color={zero?'#d6d3d1':'#185FA5'}/></div>
-                  {zero ? (
-                    <div style={{fontSize:'10px',color:'#a8a29e',flexShrink:0,whiteSpace:'nowrap'}}>0 comp · 0 board</div>
-                  ) : (
-                    <div style={{display:'flex',gap:'4px',flexShrink:0}}>
-                      <span style={chip('prod',{small:true})}>{r.compN} comp</span>
-                      <span style={chip('theme',{small:true})}>{r.boardN} board</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div style={{padding:'10px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
+          {rows.length === 0 ? (
+            <div style={{fontSize:'11px',color:'#a8a29e'}}>Add products to your itinerary to see source coverage</div>
+          ) : rows.map(r=>{
+            const pct = totalAllSources ? Math.round((r.total/totalAllSources)*100) : 0;
+            const zero = r.total === 0;
+            return (
+              <div key={r.name} style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                <div style={{fontSize:'11px',color:'#1c1917',flex:'0 0 150px',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={r.name}>{r.name}</div>
+                <div style={{flex:'1 1 auto',minWidth:0}}><Bar pct={pct} color={zero?'#d6d3d1':'#185FA5'}/></div>
+                {zero ? (
+                  <div style={{fontSize:'10px',color:'#a8a29e',flexShrink:0,whiteSpace:'nowrap'}}>0 comp · 0 board</div>
+                ) : (
+                  <div style={{display:'flex',gap:'4px',flexShrink:0}}>
+                    <span style={chip('prod',{small:true})}>{r.compN} comp</span>
+                    <span style={chip('theme',{small:true})}>{r.boardN} board</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -1910,6 +1910,8 @@ function App(){
               </div>
             </div>
           </div>
+
+          {renderSourceCoverage()}
 
           {/* ── insights panel ── */}
           {(()=>{
@@ -2529,6 +2531,7 @@ function App(){
           <div style={{fontSize:'11px',color:'#57534e',marginTop:'1px'}}>{topSub}</div>
         </div>
         <div style={{display:'flex',gap:'8px'}}>
+          {view==='builder'? <button onClick={clearAll} style={{padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'transparent',color:'#78716c',border:'0.5px solid #d6d3d1',cursor:'pointer'}}>Clear all</button>:null}
           {view==='builder'? <button onClick={saveItinerary} style={primaryBtn}>Save</button>:null}
           <button onClick={exportWord} style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 11px',borderRadius:'6px',fontSize:'12px',background:TINT,color:'#27500A',border:'0.5px solid #C0DD97',cursor:'pointer'}}>↓ Export</button>
         </div>
