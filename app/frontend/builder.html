@@ -20,6 +20,10 @@
   @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes miInsightFadeIn{from{opacity:0}to{opacity:1}}
+  .ca-source-info-btn{opacity:0;color:#a8a29e;cursor:pointer;transition:opacity .12s,color .12s}
+  .ca-source-chip-wrap:hover .ca-source-info-btn{opacity:1}
+  .ca-source-info-btn:hover{color:#57534e}
+  .ca-source-info-btn.is-open{opacity:1}
 </style>
 </head>
 <body>
@@ -1388,6 +1392,7 @@ function App(){
 
   const [suggestTab, setSuggestTab] = useState('popular');
   const [suggestSearch, setSuggestSearch] = useState('');
+  const [sourcePopup, setSourcePopup] = useState(null); // product name currently showing its source popup, or null
   const [themeInputs, setThemeInputs] = useState({});
 
   // ---- templates tab filters (operate on the global cross-state template list) ----
@@ -1696,6 +1701,34 @@ function App(){
     const chipKind = suggestTab==='board'?'board':'prod';
     return {active, list, chipKind};
   }
+
+  // Product name -> {competitors:[sourceKey,...], boards:[sourceKey,...]},
+  // built once from window.MARKET_DATA (already has source + products per tour).
+  const productSourceMap = useMemo(()=>{
+    const map = {};
+    (window.MARKET_DATA||[]).forEach(t=>{
+      (t.products||[]).forEach(p=>{
+        if(!map[p]) map[p] = {competitors:new Set(), boards:new Set()};
+        if(t.source_type==='Competitor') map[p].competitors.add(t.source);
+        else map[p].boards.add(t.source);
+      });
+    });
+    const out = {};
+    Object.keys(map).forEach(p=>{
+      out[p] = {
+        competitors: [...map[p].competitors].sort((a,b)=>sourceName(a).localeCompare(sourceName(b))),
+        boards:      [...map[p].boards].sort((a,b)=>sourceName(a).localeCompare(sourceName(b))),
+      };
+    });
+    return out;
+  }, []);
+
+  useEffect(()=>{
+    if(!sourcePopup) return;
+    const onDocClick = (e)=>{ if(!e.target.closest('.ca-source-popup') && !e.target.closest('.ca-source-info-btn')) setSourcePopup(null); };
+    document.addEventListener('mousedown', onDocClick);
+    return ()=>document.removeEventListener('mousedown', onDocClick);
+  }, [sourcePopup]);
   function renderBuilder(){ return null; }
   function renderBuilderDays(){
     const {active} = _builderShared();
@@ -1765,18 +1798,55 @@ function App(){
           <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px'}}>
             <div style={{display:'flex',borderBottom:'0.5px solid #e7e5e4'}}>
               {[['popular','Popular'],['board','Board']].map(([k,l])=>(
-                <div key={k} onClick={()=>{setSuggestTab(k);setSuggestSearch('');}} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
+                <div key={k} onClick={()=>{setSuggestTab(k);setSuggestSearch('');setSourcePopup(null);}} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
               ))}
             </div>
             <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
               <input value={suggestSearch} onChange={e=>setSuggestSearch(e.target.value)} placeholder="Search products..." style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px'}}/>
               <div style={{fontSize:'10px',color:'#a8a29e'}}>Adding to <b>Day {activeDay+1}</b></div>
               <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-                {list.length? list.map(([name,info])=>{
+                {list.length? list.map(([name,info],idx)=>{
                   const onActive=active.products.includes(name);
                   const elsewhere=(!onActive&&dayOf[name]!==undefined)?dayOf[name]:-1;
                   const inItin=onActive||elsewhere>=0;
-                  return <span key={name} onClick={()=>toggleProduct(name)} title={onActive?'On this day — click to remove':(elsewhere>=0?('On Day '+(elsewhere+1)):'Add to Day '+(activeDay+1))} style={chip(chipKind,{cursor:'pointer',faded:inItin})}>{inItin?'✓':'+'} {name}</span>;
+                  const isOpen=sourcePopup===name;
+                  const openAbove=idx >= list.length/2;
+                  const srcInfo=productSourceMap[name]||{competitors:[],boards:[]};
+                  return (
+                    <span key={name} className="ca-source-chip-wrap" style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
+                      <span onClick={()=>toggleProduct(name)} title={onActive?'On this day — click to remove':(elsewhere>=0?('On Day '+(elsewhere+1)):'Add to Day '+(activeDay+1))} style={chip(chipKind,{cursor:'pointer',faded:inItin})}>{inItin?'✓':'+'} {name}</span>
+                      <span
+                        className={'ca-source-info-btn'+(isOpen?' is-open':'')}
+                        onClick={(e)=>{e.stopPropagation();setSourcePopup(isOpen?null:name);}}
+                        title="Show sources"
+                        style={{marginLeft:'2px',fontSize:'12px',lineHeight:1,padding:'0 2px'}}
+                      >ⓘ</span>
+                      {isOpen && (
+                        <div className="ca-source-popup" style={{
+                          position:'absolute', left:0, zIndex:40,
+                          top: openAbove ? 'auto' : 'calc(100% + 6px)',
+                          bottom: openAbove ? 'calc(100% + 6px)' : 'auto',
+                          background:'#fff', border:'0.5px solid #e7e5e4', borderRadius:'8px',
+                          boxShadow:'0 6px 20px rgba(0,0,0,.12)', padding:'10px 12px',
+                          maxWidth:'260px', minWidth:'200px',
+                        }}>
+                          <div style={{fontSize:'12px',fontWeight:700,color:'#1c1917',marginBottom:'8px'}}>{name}</div>
+                          <div style={{marginBottom:'8px'}}>
+                            <div style={{fontSize:'10px',fontWeight:700,color:'#0C447C',textTransform:'uppercase',letterSpacing:'.03em',marginBottom:'4px'}}>Competitors ({srcInfo.competitors.length})</div>
+                            {srcInfo.competitors.length
+                              ? <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{srcInfo.competitors.map(s=><span key={s} style={chip('prod',{small:true})}>{sourceName(s)}</span>)}</div>
+                              : <div style={{fontSize:'11px',color:'#a8a29e'}}>No competitors</div>}
+                          </div>
+                          <div>
+                            <div style={{fontSize:'10px',fontWeight:700,color:'#633806',textTransform:'uppercase',letterSpacing:'.03em',marginBottom:'4px'}}>Boards ({srcInfo.boards.length})</div>
+                            {srcInfo.boards.length
+                              ? <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{srcInfo.boards.map(s=><span key={s} style={chip('board',{small:true})}>{sourceName(s)}</span>)}</div>
+                              : <div style={{fontSize:'11px',color:'#a8a29e'}}>No boards</div>}
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  );
                 }) : <div style={{fontSize:'11px',color:'#a8a29e'}}>No products match</div>}
               </div>
             </div>
