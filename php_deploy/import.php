@@ -1,24 +1,30 @@
 <?php
 /**
- * import.php — loads the data team's exports from imports/ into MySQL.
+ * import.php — loads the data team's JSON exports from imports/ into MySQL.
  *
- * Run it after install.php on first deploy, and again every time the data
- * team delivers new data. This file STAYS on the server (unlike install.php);
- * it is protected by the 'import_key' from config.php.
+ * Run it after setup/install.php on first deploy, and again every time the
+ * data team delivers new data. This file STAYS on the server; it is protected
+ * by the 'import_key' from config.php.
  *
  * How to run:  https://yourdomain/import.php?key=YOUR_IMPORT_KEY
  *        (or:  php import.php YOUR_IMPORT_KEY  from SSH)
  *
- * Files it looks for in imports/ (any subset may be present):
- *   data.js    — exactly what the data team's pipeline produces today:
- *                const THEMES = [...]; const DATA = {...}; const TEMPLATES = [...];
- *                plus the DATA_MODULE code at the end (extracted to data_module.js)
- *   market.js  — window.MARKET_DATA = [...];   (or market.json, a bare array)
- *   tokens.js  — const TOKENS = [...];         (or tokens.json, a bare array)
+ * Delivery format: one json.dump per file (indent=2, ensure_ascii=False):
  *
- * Each dataset found fully REPLACES its tables, bumps its version in the
- * settings table, and invalidates the cache/ files that dataset.php serves.
- * data.js is parsed line-by-line so the 26 MB file never sits in memory.
+ *   themes.json     — ["Nature & Scenery", ...]
+ *   data.json       — {"WA": {...}, "NSW": {...}, ...}
+ *   templates.json  — [{...}, {...}, ...]
+ *   market.json     — [{...}, ...]
+ *   tokens.json     — [{...}, ...]
+ *
+ * themes/data/templates form ONE dataset and must be delivered together;
+ * market.json and tokens.json are independent — any subset may be present.
+ *
+ * Each dataset found fully REPLACES its tables (inside a transaction, so a
+ * failed import leaves the old data live), bumps its version in the settings
+ * table, and invalidates the cache/ files that dataset.php serves. The two
+ * big files are parsed line-by-line — that's why indent=2 is required — so
+ * they never sit in server memory at once.
  */
 
 set_time_limit(600);
@@ -57,75 +63,60 @@ try {
 
 $didAnything = false;
 
-// ── data.js → settings(themes) + states + tour_rows + templates ───────────────
+// ── themes/data/templates → settings(themes) + states + tour_rows + templates ─
 
-$dataFile = first_existing(["$importsDir/data.js", "$importsDir/data.json"]);
-if ($dataFile !== null) {
-    echo 'Importing ' . basename($dataFile) . " ...\n";
-    import_data_js($pdo, $dataFile);
+if (is_readable("$importsDir/data.json")) {
+    foreach (['themes.json', 'templates.json'] as $required) {
+        if (!is_readable("$importsDir/$required")) {
+            fail("data.json is present but $required is missing — "
+                . 'themes.json + data.json + templates.json must be delivered together');
+        }
+    }
+    echo "Importing themes.json + data.json + templates.json ...\n";
+    import_data($pdo, $importsDir);
     bump_version($pdo, 'data_version');
     $didAnything = true;
 } else {
-    echo "[skip] imports/data.js not found\n";
+    echo "[skip] no imports/data.json found\n";
 }
 
-// ── market.js → market_tours ──────────────────────────────────────────────────
+// ── market.json → market_tours ────────────────────────────────────────────────
 
-$marketFile = first_existing(["$importsDir/market.js", "$importsDir/market.json"]);
-if ($marketFile !== null) {
-    echo 'Importing ' . basename($marketFile) . " ...\n";
-    $items = read_json_array($marketFile);
-    $pdo->beginTransaction();
-    $pdo->exec('DELETE FROM market_tours');
-    $stmt = $pdo->prepare(
+if (is_readable("$importsDir/market.json")) {
+    echo "Importing market.json ...\n";
+    $n = import_array($pdo, "$importsDir/market.json", 'market_tours',
         'INSERT INTO market_tours (seq, tour_name, source, source_type, market, state, data)
-         VALUES (?, ?, ?, ?, ?, ?, ?)'
-    );
-    foreach ($items as $i => $o) {
-        $stmt->execute([
-            $i,
+         VALUES (?, ?, ?, ?, ?, ?, ?)',
+        fn ($o) => [
             trunc($o->tour_name ?? '', 255),
             trunc($o->source ?? '', 64),
             trunc($o->source_type ?? '', 32),
             trunc($o->market ?? '', 64),
             trunc($o->state ?? '', 8),
-            json_encode($o, JSON_FLAGS),
         ]);
-    }
-    $pdo->commit();
-    echo '[ok] market_tours: ' . count($items) . " rows\n";
+    echo "[ok] market_tours: $n rows\n";
     bump_version($pdo, 'market_version');
     $didAnything = true;
 } else {
-    echo "[skip] imports/market.js not found\n";
+    echo "[skip] no imports/market.json found\n";
 }
 
-// ── tokens.js → tokens ────────────────────────────────────────────────────────
+// ── tokens.json → tokens ──────────────────────────────────────────────────────
 
-$tokensFile = first_existing(["$importsDir/tokens.js", "$importsDir/tokens.json"]);
-if ($tokensFile !== null) {
-    echo 'Importing ' . basename($tokensFile) . " ...\n";
-    $items = read_json_array($tokensFile);
-    $pdo->beginTransaction();
-    $pdo->exec('DELETE FROM tokens');
-    $stmt = $pdo->prepare(
-        'INSERT INTO tokens (seq, name, state, issue, data) VALUES (?, ?, ?, ?, ?)'
-    );
-    foreach ($items as $i => $o) {
-        $stmt->execute([
-            $i,
+if (is_readable("$importsDir/tokens.json")) {
+    echo "Importing tokens.json ...\n";
+    $n = import_array($pdo, "$importsDir/tokens.json", 'tokens',
+        'INSERT INTO tokens (seq, name, state, issue, data) VALUES (?, ?, ?, ?, ?)',
+        fn ($o) => [
             trunc($o->name ?? '', 255),
             trunc($o->state ?? '', 64),
             trunc($o->issue ?? '', 32),
-            json_encode($o, JSON_FLAGS),
         ]);
-    }
-    $pdo->commit();
-    echo '[ok] tokens: ' . count($items) . " rows\n";
+    echo "[ok] tokens: $n rows\n";
     bump_version($pdo, 'tokens_version');
     $didAnything = true;
 } else {
-    echo "[skip] imports/tokens.js not found\n";
+    echo "[skip] no imports/tokens.json found\n";
 }
 
 // ── finish: invalidate the serving cache ──────────────────────────────────────
@@ -140,19 +131,15 @@ if ($didAnything) {
     echo "\n[ok] Cache invalidated ($n file(s) removed) — dataset.php will rebuild on next page load\n";
     echo "Done.\n";
 } else {
-    echo "\nNothing imported — put the data team's files into the imports/ folder first.\n";
+    echo "\nNothing imported — put the data team's JSON files into the imports/ folder first.\n";
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 
-function first_existing(array $paths): ?string
+function fail(string $msg): void
 {
-    foreach ($paths as $p) {
-        if (is_readable($p)) {
-            return $p;
-        }
-    }
-    return null;
+    echo "[FAIL] $msg\n";
+    exit(1);
 }
 
 function trunc($s, int $len): string
@@ -168,45 +155,54 @@ function bump_version(PDO $pdo, string $name): void
     )->execute([$name]);
 }
 
-/** Reads a JSON array from a bare .json file or a "window.X = [...];"-style .js file. */
-function read_json_array(string $file): array
+function set_setting(PDO $pdo, string $name, string $value): void
 {
-    $s = trim(file_get_contents($file));
-    if ($s === '' || $s[0] !== '[') {
-        $start = strpos($s, '[');
-        $end   = strrpos($s, ']');
-        if ($start === false || $end === false || $end <= $start) {
-            fail(basename($file) . ': could not locate the JSON array');
-        }
-        $s = substr($s, $start, $end - $start + 1);
-    }
-    $items = json_decode($s);
-    if (!is_array($items)) {
-        fail(basename($file) . ': invalid JSON (' . json_last_error_msg() . ')');
-    }
-    return $items;
+    $pdo->prepare(
+        'INSERT INTO settings (name, value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE value = VALUES(value)'
+    )->execute([$name, $value]);
 }
 
 /**
- * Streaming line-parser for data.js. Relies on the file being generated by
- * the data team's pipeline (python json.dump, indent=2), which guarantees:
- *   - `const THEMES = [...];` on one line
- *   - inside DATA, each state starts with `  "XX": {` and ends with a line
- *     that is exactly `  }` or `  },` (nested lines are indented deeper)
- *   - inside TEMPLATES, each element starts `  {` and ends `  }` / `  },`
- *   - everything from `const _SK` down is the DATA_MODULE code
+ * Replaces $table with the objects from a JSON-array file. $indexCols maps
+ * each object to its indexed column values; seq and the full JSON go in
+ * automatically. Returns the row count.
  */
-function import_data_js(PDO $pdo, string $file): void
+function import_array(PDO $pdo, string $file, string $table, string $insertSql, callable $indexCols): int
 {
-    $fh = fopen($file, 'r');
-    if (!$fh) {
-        fail('could not open ' . basename($file));
+    $items = json_decode(file_get_contents($file));
+    if (!is_array($items)) {
+        fail(basename($file) . ': not a JSON array (' . json_last_error_msg() . ')');
+    }
+    $pdo->beginTransaction();
+    $pdo->exec("DELETE FROM $table");
+    $stmt = $pdo->prepare($insertSql);
+    foreach ($items as $i => $o) {
+        $stmt->execute(array_merge([$i], $indexCols($o), [json_encode($o, JSON_FLAGS)]));
+    }
+    $pdo->commit();
+    return count($items);
+}
+
+/**
+ * Imports themes.json + data.json + templates.json as one dataset.
+ *
+ * The two big files are streamed one top-level entry at a time, relying on
+ * json.dump(indent=2) formatting: each entry starts at indent 2 and its
+ * closing brace is alone on its line (nested lines are indented deeper).
+ */
+function import_data(PDO $pdo, string $dir): void
+{
+    $themes = json_decode(file_get_contents("$dir/themes.json"));
+    if (!is_array($themes)) {
+        fail('themes.json: invalid JSON (' . json_last_error_msg() . ')');
     }
 
     $pdo->beginTransaction();
     $pdo->exec('DELETE FROM states');
     $pdo->exec('DELETE FROM tour_rows');
     $pdo->exec('DELETE FROM templates');
+    set_setting($pdo, 'themes', json_encode($themes, JSON_FLAGS));
 
     $insState = $pdo->prepare(
         'INSERT INTO states (abbr, seq, name, cities, products, seed, templates)
@@ -220,145 +216,97 @@ function import_data_js(PDO $pdo, string $file): void
         'INSERT INTO templates (seq, name, source, type, data) VALUES (?, ?, ?, ?, ?)'
     );
 
-    $mode      = null;   // null | 'data' | 'templates' | 'module'
-    $buf       = null;   // accumulating JSON text of one state / template
-    $curState  = null;
-    $stateSeq  = 0;
-    $tplSeq    = 0;
-    $rowCount  = 0;
-    $module    = '';
-    $gotThemes = false;
-
-    while (($line = fgets($fh)) !== false) {
-        $line = rtrim($line, "\r\n");
-
-        if ($mode === 'module') {
-            $module .= $line . "\n";
-            continue;
-        }
-
-        if ($mode === null) {
-            if (strpos($line, 'const THEMES = ') === 0) {
-                $themes = json_decode(rtrim(substr($line, 15), " ;"));
-                if (!is_array($themes)) {
-                    fail('data.js: could not parse the THEMES line');
-                }
-                set_setting($pdo, 'themes', json_encode($themes, JSON_FLAGS));
-                $gotThemes = true;
-            } elseif ($line === 'const DATA = {') {
-                $mode = 'data';
-            } elseif ($line === 'const TEMPLATES = [') {
-                $mode = 'templates';
-            } elseif (strpos($line, 'const _SK') === 0) {
-                $mode   = 'module';
-                $module = $line . "\n";
-            }
-            continue;
-        }
-
-        if ($mode === 'data') {
-            if ($curState === null) {
-                if (preg_match('/^  "([A-Za-z]+)": \{$/', $line, $m)) {
-                    $curState = $m[1];
-                    $buf      = "{\n";
-                } elseif ($line === '};') {
-                    $mode = null;
-                }
-                continue;
-            }
-            if ($line === '  }' || $line === '  },') {
-                $st = json_decode($buf . '}');
-                if (!is_object($st)) {
-                    fail("data.js: state \"$curState\" is not valid JSON (" . json_last_error_msg() . ')');
-                }
-                $insState->execute([
-                    $curState,
-                    $stateSeq++,
-                    (string) ($st->name ?? $curState),
-                    json_encode($st->cities ?? new stdClass(), JSON_FLAGS),
-                    json_encode($st->products ?? new stdClass(), JSON_FLAGS),
-                    json_encode($st->seed ?? new stdClass(), JSON_FLAGS),
-                    json_encode($st->templates ?? [], JSON_FLAGS),
+    // data.json — {"WA": {...}, ...}, one state at a time
+    $stateSeq = 0;
+    $rowCount = 0;
+    stream_entries("$dir/data.json", '/^  "([A-Za-z]+)": \{$/',
+        function (stdClass $st, ?string $abbr) use ($insState, $insRow, &$stateSeq, &$rowCount) {
+            $insState->execute([
+                $abbr,
+                $stateSeq++,
+                (string) ($st->name ?? $abbr),
+                json_encode($st->cities ?? new stdClass(), JSON_FLAGS),
+                json_encode($st->products ?? new stdClass(), JSON_FLAGS),
+                json_encode($st->seed ?? new stdClass(), JSON_FLAGS),
+                json_encode($st->templates ?? [], JSON_FLAGS),
+            ]);
+            $n = 0;
+            foreach (($st->allRows ?? []) as $i => $row) {
+                $insRow->execute([
+                    $abbr,
+                    $i,
+                    trunc($row->tour ?? '', 255),
+                    trunc($row->source ?? '', 64),
+                    trunc($row->type ?? '', 32),
+                    (int) ($row->day ?? 0),
+                    trunc($row->city ?? '', 128),
+                    json_encode($row, JSON_FLAGS),
                 ]);
-                foreach (($st->allRows ?? []) as $i => $row) {
-                    $insRow->execute([
-                        $curState,
-                        $i,
-                        trunc($row->tour ?? '', 255),
-                        trunc($row->source ?? '', 64),
-                        trunc($row->type ?? '', 32),
-                        (int) ($row->day ?? 0),
-                        trunc($row->city ?? '', 128),
-                        json_encode($row, JSON_FLAGS),
-                    ]);
-                    $rowCount++;
-                }
-                echo "  [ok] $curState: " . count($st->allRows ?? []) . " rows\n";
-                $curState = null;
-                $buf      = null;
-            } else {
-                $buf .= $line . "\n";
+                $n++;
             }
-            continue;
-        }
+            $rowCount += $n;
+            echo "  [ok] $abbr: $n rows\n";
+        });
 
-        if ($mode === 'templates') {
-            if ($buf === null) {
-                if ($line === '  {') {
-                    $buf = "{\n";
-                } elseif ($line === '];') {
-                    $mode = null;
-                }
-                continue;
-            }
-            if ($line === '  }' || $line === '  },') {
-                $tpl = json_decode($buf . '}');
-                if (!is_object($tpl)) {
-                    fail('data.js: template #' . ($tplSeq + 1) . ' is not valid JSON');
-                }
-                $insTpl->execute([
-                    $tplSeq++,
-                    trunc($tpl->name ?? '', 255),
-                    trunc($tpl->source ?? '', 64),
-                    trunc($tpl->type ?? '', 32),
-                    json_encode($tpl, JSON_FLAGS),
-                ]);
-                $buf = null;
-            } else {
-                $buf .= $line . "\n";
-            }
-            continue;
-        }
-    }
-    fclose($fh);
+    // templates.json — [{...}, ...], one template at a time
+    $tplSeq = 0;
+    stream_entries("$dir/templates.json", '/^  \{$/',
+        function (stdClass $tpl) use ($insTpl, &$tplSeq) {
+            $insTpl->execute([
+                $tplSeq++,
+                trunc($tpl->name ?? '', 255),
+                trunc($tpl->source ?? '', 64),
+                trunc($tpl->type ?? '', 32),
+                json_encode($tpl, JSON_FLAGS),
+            ]);
+        });
 
-    if (!$gotThemes || $stateSeq === 0 || $tplSeq === 0) {
-        fail('data.js: parsing finished but something is missing '
-            . "(themes: " . ($gotThemes ? 'yes' : 'NO')
-            . ", states: $stateSeq, templates: $tplSeq) — file format changed?");
+    if ($stateSeq === 0 || $tplSeq === 0) {
+        fail("parsing finished but something is missing (states: $stateSeq, templates: $tplSeq) — "
+            . 'are the files pretty-printed with json.dump(..., indent=2)?');
     }
 
     $pdo->commit();
     echo "[ok] states: $stateSeq · tour_rows: $rowCount · templates: $tplSeq\n";
+}
 
-    if ($module !== '') {
-        file_put_contents(__DIR__ . '/data_module.js', $module);
-        echo "[ok] data_module.js regenerated from the module code in data.js\n";
-    } else {
-        echo "[note] no DATA_MODULE code found in data.js — kept the existing data_module.js\n";
+/**
+ * Streams a big pretty-printed JSON file entry by entry. $startPattern marks
+ * an entry's opening line (its first capture group, if any, is passed to
+ * $handle as the entry's key); a line that is exactly `  }` or `  },` ends it.
+ */
+function stream_entries(string $file, string $startPattern, callable $handle): void
+{
+    $fh = fopen($file, 'r');
+    if (!$fh) {
+        fail('could not open ' . basename($file));
     }
-}
-
-function set_setting(PDO $pdo, string $name, string $value): void
-{
-    $pdo->prepare(
-        'INSERT INTO settings (name, value) VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE value = VALUES(value)'
-    )->execute([$name, $value]);
-}
-
-function fail(string $msg): void
-{
-    echo "[FAIL] $msg\n";
-    exit(1);
+    $buf = null;
+    $key = null;
+    while (($line = fgets($fh)) !== false) {
+        $line = rtrim($line, "\r\n");
+        if ($buf === null) {
+            if (preg_match($startPattern, $line, $m)) {
+                $key = $m[1] ?? null;
+                $buf = "{\n";
+            }
+            continue;
+        }
+        if ($line === '  }' || $line === '  },') {
+            $entry = json_decode($buf . '}');
+            if (!is_object($entry)) {
+                fail(basename($file) . ': entry' . ($key !== null ? " \"$key\"" : '')
+                    . ' is not valid JSON (' . json_last_error_msg() . ')');
+            }
+            $handle($entry, $key);
+            $buf = null;
+            $key = null;
+        } else {
+            $buf .= $line . "\n";
+        }
+    }
+    fclose($fh);
+    if ($buf !== null) {
+        fail(basename($file) . ': ends mid-entry — truncated upload?');
+    }
 }

@@ -8,8 +8,8 @@ RewriteEngine On
 RewriteRule ^itineraries(/.*)?$ api.php [QSA,L]
 RewriteRule ^api/predict$ api.php [QSA,L]
 
-# Block direct download of server-side / seed files
-# (imports/ and cache/ each carry their own "Require all denied" .htaccess)
+# Block direct download of server-side files
+# (imports/, cache/ and setup/ each carry their own .htaccess rules)
 <FilesMatch "^(config\.php|schema\.sql|saved_itineraries\.json)$">
     Require all denied
 </FilesMatch>

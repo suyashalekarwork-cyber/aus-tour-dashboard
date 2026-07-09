@@ -1,0 +1,6 @@
+Require all denied
+
+# install.php itself must stay reachable to run the one-time setup
+<Files "install.php">
+    Require all granted
+</Files>
