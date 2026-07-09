@@ -1,0 +1,29 @@
+# TDU Itinerary Builder — Apache config for cPanel
+
+# Opening the folder goes straight to the app
+DirectoryIndex builder.html
+
+# Route API calls to api.php (paths are relative, so this works in a subfolder)
+RewriteEngine On
+RewriteRule ^itineraries(/.*)?$ api.php [QSA,L]
+RewriteRule ^api/predict$ api.php [QSA,L]
+
+# Block direct download of server-side / seed files
+# (imports/ and cache/ each carry their own "Require all denied" .htaccess)
+<FilesMatch "^(config\.php|schema\.sql|saved_itineraries\.json)$">
+    Require all denied
+</FilesMatch>
+
+# Compress the big JS/JSON responses (dataset.php output included)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/javascript text/javascript application/json text/html text/css
+</IfModule>
+
+# Never cache the page or app code that changes between deploys/imports;
+# dataset.php manages its own ETag-based caching. (react/babel libs may use
+# the browser's default heuristics — they never change.)
+<IfModule mod_headers.c>
+    <FilesMatch "(\.html|\.json|^data_module\.js|^support\.js)$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    </FilesMatch>
+</IfModule>

@@ -1,0 +1,3169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour Builder</title>
+<script src="./react.production.min.js"></script>
+<script src="./react-dom.production.min.js"></script>
+<script src="./babel.min.js"></script>
+<script src="dataset.php?f=tokens"></script>
+<script src="dataset.php?f=data"></script>
+<script src="./data_module.js"></script><!-- must load after f=data: it captures DATA/TEMPLATES/THEMES -->
+<script src="dataset.php?f=market"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f0efed;font-family:'Helvetica Neue',Helvetica,'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;color:#1c1917}
+  input,select,button{font-family:inherit}
+  input:focus,select:focus{outline:1px solid #97C459}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#d6d3d1;border-radius:5px}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes miInsightFadeIn{from{opacity:0}to{opacity:1}}
+  .ca-source-info-btn{opacity:0;color:#a8a29e;cursor:pointer;transition:opacity .12s,color .12s}
+  .ca-source-chip-wrap:hover .ca-source-info-btn{opacity:1}
+  .ca-source-info-btn:hover{color:#57534e}
+  .ca-source-info-btn.is-open{opacity:1}
+  .ca-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+</style>
+</head>
+<body>
+<div id="root" style="padding:0;display:flex"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+const ACCENT  = '#1D9E75';
+const GREEN   = '#639922';
+const TINT    = '#EAF3DE';
+
+const STATE_COL = {
+  WA:{bg:'#FEF3C7',tx:'#92400E',bd:'#FDE68A'}, QLD:{bg:'#DBEAFE',tx:'#1E40AF',bd:'#BFDBFE'},
+  NSW:{bg:'#DCFCE7',tx:'#166534',bd:'#BBF7D0'}, VIC:{bg:'#EDE9FE',tx:'#5B21B6',bd:'#DDD6FE'},
+  TAS:{bg:'#ECFDF5',tx:'#065F46',bd:'#A7F3D0'}, NT:{bg:'#FFEDD5',tx:'#9A3412',bd:'#FED7AA'},
+  SA:{bg:'#FCE7F3',tx:'#9D174D',bd:'#FBCFE8'}, ACT:{bg:'#E0F2FE',tx:'#075985',bd:'#BAE6FD'},
+};
+function stateChipStyle(s, small){
+  const c = STATE_COL[s] || {bg:'#f5f5f4',tx:'#57534e',bd:'#e7e5e4'};
+  return {display:'inline-flex',alignItems:'center',padding:small?'1px 6px':'2px 8px',borderRadius:'4px',
+    fontSize:small?'10px':'11px',fontWeight:700,background:c.bg,color:c.tx,border:'0.5px solid '+c.bd,whiteSpace:'nowrap'};
+}
+
+// ════════════════════════════════════════════════════════════
+// Analytics view — pure CSS charts, no external library
+// ════════════════════════════════════════════════════════════
+
+function HBar({items, title, colorFn, labelWidth, note}){
+  labelWidth = labelWidth || 160;
+  const max = Math.max(...items.map(x=>x.v), 1);
+  return (
+    <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',minWidth:0}}>
+      <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'10px'}}>{title}</div>
+      {note && <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'8px'}}>{note}</div>}
+      <div style={{display:'flex',flexDirection:'column',gap:'5px'}}>
+        {items.map((x,i)=>{
+          const pct = Math.round(x.v/max*100);
+          const col = colorFn ? colorFn(x) : '#1D9E75';
+          return (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'11px'}}>
+              <div style={{width:labelWidth,minWidth:labelWidth,textAlign:'right',color:'#57534e',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0}} title={x.label}>{x.label}</div>
+              <div style={{flex:1,height:'16px',background:'#f0efed',borderRadius:'3px',overflow:'hidden'}}>
+                <div style={{height:'100%',width:pct+'%',background:col,borderRadius:'3px',transition:'width .3s'}}/>
+              </div>
+              <div style={{width:'32px',textAlign:'right',fontWeight:600,color:'#1c1917',flexShrink:0}}>{x.v}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function GroupedHBar({items, title, keys, colors, labelWidth, note}){
+  // items: [{label, [key]: value}], keys: ['A','B'], colors: {A:'#...', B:'#...'}
+  labelWidth = labelWidth || 140;
+  const max = Math.max(...items.flatMap(x=>keys.map(k=>x[k]||0)), 1);
+  return (
+    <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',minWidth:0}}>
+      <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'4px'}}>{title}</div>
+      {note && <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'4px'}}>{note}</div>}
+      <div style={{display:'flex',gap:'12px',marginBottom:'8px'}}>
+        {keys.map(k=><div key={k} style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'10px',color:'#57534e'}}><div style={{width:'10px',height:'10px',borderRadius:'2px',background:colors[k]}}/>{k}</div>)}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+        {items.map((x,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'11px'}}>
+            <div style={{width:labelWidth,minWidth:labelWidth,textAlign:'right',color:'#57534e',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0}}>{x.label}</div>
+            <div style={{flex:1,display:'flex',flexDirection:'column',gap:'2px'}}>
+              {keys.map(k=>(
+                <div key={k} style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                  <div style={{flex:1,height:'10px',background:'#f0efed',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:Math.round((x[k]||0)/max*100)+'%',background:colors[k],borderRadius:'2px'}}/>
+                  </div>
+                  <div style={{width:'28px',textAlign:'right',fontSize:'10px',color:'#57534e'}}>{x[k]||0}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsView({catalog, THEMES}){
+  const stats = useMemo(()=>{
+    const allRows = Object.values(catalog).flatMap(s=>s.allRows||[]);
+    const allTpls = Object.values(catalog).flatMap(s=>s.templates||[]);
+
+    // de-duplicate tours by url+source (allRows has one row per day)
+    const tourMap = new Map();
+    allRows.forEach(r=>{ const k=r.url||r.tour; if(!tourMap.has(k)) tourMap.set(k,r); });
+    const tours = [...tourMap.values()];
+
+    // headline
+    const totalDayRows = allRows.length;
+    const totalTours   = tours.length;
+    const uniqueSources = new Set(tours.map(t=>t.source)).size;
+    const uniqueCities  = new Set(allRows.map(r=>r.city).filter(Boolean)).size;
+
+    // tours by source (colored by type)
+    const srcMap = new Map();
+    tours.forEach(t=>{
+      if(!srcMap.has(t.source)) srcMap.set(t.source,{v:0,type:t.type});
+      srcMap.get(t.source).v++;
+    });
+    const bySource = [...srcMap.entries()].map(([label,x])=>({label,v:x.v,type:x.type})).sort((a,b)=>b.v-a.v);
+
+    // tours by market
+    const mktMap = new Map();
+    tours.forEach(t=>{ const m=t.sourceLocation||'Unknown'; mktMap.set(m,(mktMap.get(m)||0)+1); });
+    const byMarket = [...mktMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    // competitor vs board
+    const compCount  = tours.filter(t=>t.type==='Competitor').length;
+    const boardCount = tours.filter(t=>t.type==='Board').length;
+
+    // tours per state
+    const stateMap = new Map();
+    Object.entries(catalog).forEach(([abbr, sd])=>{
+      const stateUrls = new Set((sd.allRows||[]).map(r=>r.url||r.tour));
+      stateMap.set(abbr, stateUrls.size);
+    });
+    const byState = [...stateMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    // comp vs board per state
+    const stateCompBoard = Object.entries(catalog).map(([abbr,sd])=>{
+      const stateRows = sd.allRows||[];
+      const seen = new Map();
+      stateRows.forEach(r=>{ const k=r.url||r.tour; if(!seen.has(k)) seen.set(k,r.type); });
+      let comp=0,board=0;
+      seen.forEach(t=>{ if(t==='Competitor') comp++; else board++; });
+      return {label:abbr, Competitor:comp, Board:board};
+    }).sort((a,b)=>(b.Competitor+b.Board)-(a.Competitor+a.Board));
+
+    // top 20 cities by day-visits
+    const cityCount = new Map();
+    allRows.forEach(r=>{ if(r.city) cityCount.set(r.city,(cityCount.get(r.city)||0)+1); });
+    const topCities = [...cityCount.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v).slice(0,20);
+
+    // theme frequency
+    const themeCount = new Map();
+    allRows.forEach(r=>{
+      if(r.themes)(r.themes.split(',').map(t=>t.trim()).filter(Boolean)).forEach(t=>themeCount.set(t,(themeCount.get(t)||0)+1));
+    });
+    allTpls.forEach(t=>(t.themes||[]).forEach(th=>themeCount.set(th,(themeCount.get(th)||0)+1)));
+    const byTheme = [...themeCount.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v).slice(0,15);
+
+    // duration distribution (from templates — have days[])
+    const buckets = [
+      {label:'1–5 days', min:1, max:5, Competitor:0, Board:0},
+      {label:'6–7 days', min:6, max:7, Competitor:0, Board:0},
+      {label:'8–10 days', min:8, max:10, Competitor:0, Board:0},
+      {label:'11–14 days', min:11, max:14, Competitor:0, Board:0},
+      {label:'15+ days', min:15, max:999, Competitor:0, Board:0},
+    ];
+    allTpls.forEach(t=>{
+      const d=(t.days||[]).length||1;
+      const b=buckets.find(b=>d>=b.min&&d<=b.max);
+      if(b) b[t.type==='Competitor'?'Competitor':'Board']++;
+    });
+
+    return {totalDayRows,totalTours,uniqueSources,uniqueCities,bySource,byMarket,compCount,boardCount,byState,topCities,byTheme,buckets,stateCompBoard};
+  }, [catalog]);
+
+  const COMP_COL  = '#E8732A';
+  const BOARD_COL = '#1D9E75';
+  const MKT_COLORS = ['#185FA5','#1D9E75','#E8732A','#9333EA','#0D9488','#DC2626','#F59E0B'];
+
+  const secHead = (txt,sub) => (
+    <div style={{marginBottom:'12px',marginTop:'4px'}}>
+      <div style={{fontSize:'13px',fontWeight:700,color:'#1c1917'}}>{txt}</div>
+      {sub && <div style={{fontSize:'11px',color:'#a8a29e',marginTop:'2px'}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{padding:'18px 20px',display:'flex',flexDirection:'column',gap:'20px',maxWidth:'1200px'}}>
+
+      {/* ── Headline metrics ── */}
+      {secHead('Dataset Overview', 'Across all states currently loaded')}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'10px'}}>
+        {[
+          ['Total Tours', stats.totalTours, 'unique itineraries'],
+          ['Day-Rows', stats.totalDayRows, 'individual day entries'],
+          ['Sources', stats.uniqueSources, 'operators & boards'],
+          ['Cities', stats.uniqueCities, 'distinct cities covered'],
+        ].map(([label,num,sub])=>(
+          <div key={label} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px'}}>
+            <div style={{fontSize:'10px',color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'4px'}}>{label}</div>
+            <div style={{fontSize:'26px',fontWeight:700,color:'#1c1917'}}>{num.toLocaleString()}</div>
+            <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'2px'}}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Competitor vs Board ── */}
+      {secHead('Competitor vs Board', 'Operators we compete with vs tourism boards')}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'16px'}}>
+          <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'12px'}}>Tour type split</div>
+          <div style={{display:'flex',gap:'12px',alignItems:'stretch'}}>
+            {[['Competitor', stats.compCount, COMP_COL],['Board', stats.boardCount, BOARD_COL]].map(([label,n,col])=>(
+              <div key={label} style={{flex:1,background:col+'18',border:`1px solid ${col}40`,borderRadius:'8px',padding:'14px',textAlign:'center'}}>
+                <div style={{fontSize:'28px',fontWeight:700,color:col}}>{n}</div>
+                <div style={{fontSize:'11px',color:col,fontWeight:600,marginTop:'4px'}}>{label}</div>
+                <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'2px'}}>{Math.round(n/(stats.compCount+stats.boardCount)*100)}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <GroupedHBar items={stats.stateCompBoard} title="Competitor vs Board by State"
+          keys={['Competitor','Board']} colors={{Competitor:COMP_COL,Board:BOARD_COL}} labelWidth={50}/>
+      </div>
+
+      {/* ── Source & Market ── */}
+      {secHead('Source & Market Breakdown', 'Which operators and origin markets contribute the most tours')}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+        <HBar items={stats.bySource} title="Tours by Source"
+          colorFn={x=>x.type==='Competitor'?COMP_COL:BOARD_COL} labelWidth={170}
+          note="Orange = Competitor · Teal = Board"/>
+        <HBar items={stats.byMarket} title="Tours by Origin Market"
+          colorFn={(x,i)=>MKT_COLORS[stats.byMarket.indexOf(x)%MKT_COLORS.length]} labelWidth={120}/>
+      </div>
+
+      {/* ── Geography ── */}
+      {secHead('Geography', 'State coverage and top cities by day-visit volume')}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+        <HBar items={stats.byState} title="Tours per State" labelWidth={60}
+          colorFn={()=>BOARD_COL}/>
+        <HBar items={stats.topCities} title="Top 20 Cities (by day-row count)" labelWidth={140}
+          colorFn={()=>'#185FA5'} note="Each day spent in a city = 1 count"/>
+      </div>
+
+      {/* ── Themes & Duration ── */}
+      {secHead('Themes & Duration', 'What themes dominate and how long are tours')}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+        <HBar items={stats.byTheme} title="Top 15 Themes (day-row + template frequency)"
+          colorFn={()=>'#9333EA'} labelWidth={160}/>
+        <GroupedHBar items={stats.buckets} title="Duration Distribution"
+          keys={['Competitor','Board']} colors={{Competitor:COMP_COL,Board:BOARD_COL}} labelWidth={90}
+          note="Tour length bucketed from template day count"/>
+      </div>
+
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Market Intelligence view — cross-filterable charts + gap analysis
+// ════════════════════════════════════════════════════════════
+
+function ClickHBar({items, title, colorFn, labelWidth, note, selected, onSelect, maxHeight}){
+  labelWidth = labelWidth || 160;
+  const max = Math.max(...items.map(x=>x.v), 1);
+  selected = selected || [];
+  return (
+    <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',minWidth:0,height:'100%'}}>
+      <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'10px'}}>{title}</div>
+      {note && <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'8px'}}>{note}</div>}
+      <div style={{display:'flex',flexDirection:'column',gap:'5px',maxHeight:maxHeight||'none',overflowY:maxHeight?'auto':'visible'}}>
+        {items.map((x,i)=>{
+          const pct = Math.round(x.v/max*100);
+          const col = colorFn ? colorFn(x) : '#1D9E75';
+          const isSel = selected.includes(x.label);
+          return (
+            <div key={i} onClick={()=>onSelect&&onSelect(x.label)}
+              style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'11px',cursor:onSelect?'pointer':'default',
+                padding:'2px 4px',borderRadius:'4px',background:isSel?'#EAF3DE':'transparent',border:isSel?'1px solid #97C459':'1px solid transparent'}}>
+              <div style={{width:labelWidth,minWidth:labelWidth,textAlign:'right',color:isSel?'#27500A':'#57534e',fontWeight:isSel?700:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0}} title={x.displayLabel||x.label}>{isSel?'✓ ':''}{x.displayLabel||x.label}</div>
+              <div style={{flex:1,height:'16px',background:'#f0efed',borderRadius:'3px',overflow:'hidden'}}>
+                <div style={{height:'100%',width:pct+'%',background:isSel?'#27500A':col,borderRadius:'3px',transition:'width .3s'}}/>
+              </div>
+              <div style={{width:'32px',textAlign:'right',fontWeight:600,color:'#1c1917',flexShrink:0}}>{x.v}</div>
+            </div>
+          );
+        })}
+        {items.length===0? <div style={{fontSize:'11px',color:'#a8a29e',padding:'4px 0'}}>No matches</div>:null}
+      </div>
+    </div>
+  );
+}
+
+function SortArrow({dir}){
+  return <span style={{fontSize:'9px',marginLeft:'3px'}}>{dir==='asc'?'▲':'▼'}</span>;
+}
+
+function DonutChart({competitor, board, compColor, boardColor, selected, onSelect}){
+  const total = (competitor||0) + (board||0);
+  const compPct = total? Math.round(competitor/total*100) : 0;
+  const boardPct = total? 100-compPct : 0;
+  const R = 40, C = 2*Math.PI*R;
+  const compLen = total? (competitor/total)*C : 0;
+  const isCompSel = selected==='Competitor', isBoardSel = selected==='Board';
+  return (
+    <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',minWidth:0,height:'100%'}}>
+      <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'10px'}}>Competitor vs Board</div>
+      <div style={{display:'flex',alignItems:'center',gap:'18px'}}>
+        <svg width="100" height="100" viewBox="0 0 100 100" style={{flexShrink:0}}>
+          <circle cx="50" cy="50" r={R} fill="none" stroke="#f0efed" strokeWidth="14"/>
+          <circle cx="50" cy="50" r={R} fill="none" stroke={boardColor} strokeWidth="14"
+            strokeDasharray={C} strokeDashoffset={-compLen} transform="rotate(-90 50 50)"
+            onClick={()=>onSelect&&onSelect('Board')} style={{cursor:onSelect?'pointer':'default',opacity:isCompSel?0.35:1}}/>
+          <circle cx="50" cy="50" r={R} fill="none" stroke={compColor} strokeWidth="14"
+            strokeDasharray={`${compLen} ${C-compLen}`} transform="rotate(-90 50 50)"
+            onClick={()=>onSelect&&onSelect('Competitor')} style={{cursor:onSelect?'pointer':'default',opacity:isBoardSel?0.35:1}}/>
+          <text x="50" y="54" textAnchor="middle" fontSize="16" fontWeight="700" fill="#1c1917">{total}</text>
+        </svg>
+        <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+          <div onClick={()=>onSelect&&onSelect('Competitor')} style={{cursor:onSelect?'pointer':'default',display:'flex',alignItems:'center',gap:'6px',padding:'2px 4px',borderRadius:'4px',background:isCompSel?'#FBE4D1':'transparent'}}>
+            <div style={{width:'9px',height:'9px',borderRadius:'2px',background:compColor}}/>
+            <span style={{fontSize:'11px',color:'#57534e'}}>{isCompSel?'✓ ':''}Competitor</span>
+            <span style={{fontSize:'11px',fontWeight:700,color:'#1c1917'}}>{compPct}% ({competitor})</span>
+          </div>
+          <div onClick={()=>onSelect&&onSelect('Board')} style={{cursor:onSelect?'pointer':'default',display:'flex',alignItems:'center',gap:'6px',padding:'2px 4px',borderRadius:'4px',background:isBoardSel?'#D9EFE6':'transparent'}}>
+            <div style={{width:'9px',height:'9px',borderRadius:'2px',background:boardColor}}/>
+            <span style={{fontSize:'11px',color:'#57534e'}}>{isBoardSel?'✓ ':''}Board</span>
+            <span style={{fontSize:'11px',fontWeight:700,color:'#1c1917'}}>{boardPct}% ({board})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GroupedClickHBar({items, title, keyA, keyB, colorA, colorB, labelWidth, selectedA, selectedB, onSelectA, onSelectB}){
+  // items: [{label, [keyA]: n, [keyB]: n}] — grouped bar per label, click either segment independently
+  labelWidth = labelWidth || 110;
+  selectedA = selectedA || []; selectedB = selectedB || [];
+  const max = Math.max(...items.flatMap(x=>[x[keyA]||0, x[keyB]||0]), 1);
+  return (
+    <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',minWidth:0,height:'100%'}}>
+      <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'4px'}}>{title}</div>
+      <div style={{display:'flex',gap:'12px',marginBottom:'10px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'10px',color:'#57534e'}}><div style={{width:'10px',height:'10px',borderRadius:'2px',background:colorA}}/>{keyA}</div>
+        <div style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'10px',color:'#57534e'}}><div style={{width:'10px',height:'10px',borderRadius:'2px',background:colorB}}/>{keyB}</div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+        {items.map((x,i)=>{
+          const isSelA = selectedA.includes(x.label);
+          const isSelB = selectedB.includes(x.label);
+          return (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'11px'}}>
+              <div style={{width:labelWidth,minWidth:labelWidth,textAlign:'right',color:'#57534e',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0}} title={x.label}>{x.label}</div>
+              <div style={{flex:1,display:'flex',flexDirection:'column',gap:'3px'}}>
+                <div onClick={()=>onSelectA&&onSelectA(x.label)} style={{display:'flex',alignItems:'center',gap:'4px',cursor:onSelectA?'pointer':'default',padding:'1px 3px',borderRadius:'3px',background:isSelA?'#EAF3DE':'transparent',border:isSelA?'1px solid #97C459':'1px solid transparent'}}>
+                  <div style={{flex:1,height:'9px',background:'#f0efed',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:Math.round((x[keyA]||0)/max*100)+'%',background:isSelA?'#27500A':colorA,borderRadius:'2px'}}/>
+                  </div>
+                  <div style={{width:'26px',textAlign:'right',fontSize:'10px',color:'#57534e'}}>{x[keyA]||0}</div>
+                </div>
+                <div onClick={()=>onSelectB&&onSelectB(x.label)} style={{display:'flex',alignItems:'center',gap:'4px',cursor:onSelectB?'pointer':'default',padding:'1px 3px',borderRadius:'3px',background:isSelB?'#EAF3DE':'transparent',border:isSelB?'1px solid #97C459':'1px solid transparent'}}>
+                  <div style={{flex:1,height:'9px',background:'#f0efed',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:Math.round((x[keyB]||0)/max*100)+'%',background:isSelB?'#27500A':colorB,borderRadius:'2px'}}/>
+                  </div>
+                  <div style={{width:'26px',textAlign:'right',fontSize:'10px',color:'#57534e'}}>{x[keyB]||0}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const HEATMAP_STATE_ORDER = ['NSW','VIC','QLD','WA','SA','TAS','NT','ACT'];
+
+// Readable source display names — underlying data key (source_key) is unchanged,
+// this is display-only. Charts show name only; the itinerary table shows name + flag.
+const SOURCE_DISPLAY = {
+  make_my_trip:        {name:'MakeMyTrip',          flag:'🇮🇳 India'},
+  thomas_cook:         {name:'Thomas Cook',         flag:'🇮🇳 India'},
+  sotc:                {name:'SOTC',                flag:'🇮🇳 India'},
+  kesari:              {name:'Kesari Tours',        flag:'🇮🇳 India'},
+  veena_world:         {name:'Veena World',         flag:'🇮🇳 India'},
+  chan_brothers:       {name:'Chan Brothers',       flag:'🇸🇬 Singapore'},
+  scott_dunn:          {name:'Scott Dunn',          flag:'🇬🇧 UK'},
+  jacada:              {name:'Jacada Travel',       flag:'🇬🇧 UK'},
+  global_journeys:     {name:'Global Journeys',     flag:'🇦🇺 Australia'},
+  inside_australia:    {name:'Inside Australia',    flag:'🇦🇺 Australia'},
+  absolute_australia:  {name:'Absolute Australia',  flag:'🇦🇺 Australia'},
+  australia_com:       {name:'Tourism Australia',   flag:'🇦🇺 Board'},
+  westernaustralia_com:{name:'Tourism WA',          flag:'🇦🇺 Board'},
+  visitvictoria_com:   {name:'Visit Victoria',      flag:'🇦🇺 Board'},
+  queensland_com:      {name:'Tourism Queensland',  flag:'🇦🇺 Board'},
+  sydney_com:          {name:'Destination NSW',     flag:'🇦🇺 Board'},
+  discover_tasmania:   {name:'Discover Tasmania',   flag:'🇦🇺 Board'},
+};
+function sourceName(key){ return (SOURCE_DISPLAY[key]||{}).name || key; }
+function sourceLabel(key){ const d=SOURCE_DISPLAY[key]; return d? `${d.name} · ${d.flag}` : key; }
+const MI_FILTER_STORAGE_KEY = 'mi_filter_state';
+
+function loadMIFilterState(){
+  try {
+    const raw = localStorage.getItem(MI_FILTER_STORAGE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return {
+      marketFilter: Array.isArray(s.marketFilter)? s.marketFilter : [],
+      stateFilter:  Array.isArray(s.stateFilter)?  s.stateFilter  : [],
+      cityFilter:   Array.isArray(s.cityFilter)?   s.cityFilter   : [],
+      productFilter: Array.isArray(s.productFilter)? s.productFilter : [],
+      sourceFilter: Array.isArray(s.sourceFilter)? s.sourceFilter : [],
+      typeFilter:   typeof s.typeFilter==='string'? s.typeFilter : 'all',
+      sortCol:      typeof s.sortCol==='string'? s.sortCol : 'total_days',
+      sortDir:      s.sortDir==='asc'? 'asc' : 'desc',
+      sidebarTab:   s.sidebarTab==='products'? 'products' : 'cities',
+      sidebarSearch: typeof s.sidebarSearch==='string'? s.sidebarSearch : '',
+      sidebarOpen:  s.sidebarOpen!==false,
+    };
+  } catch(e) { return null; }
+}
+
+function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered, onGenerateDraft, catalog, allTemplatesGlobal}){
+  const allTours = window.MARKET_DATA || [];
+  const restored = useMemo(()=>loadMIFilterState(), []);
+
+  // multi-select drill-down filters — all additive (AND across dimensions, OR within)
+  // Change 2: initial state is restored from localStorage (key: mi_filter_state)
+  // so filters survive navigating away to another tab and back.
+  const [marketFilter, setMarketFilter] = useState(()=>restored? restored.marketFilter : []);
+  const [stateFilter, setStateFilter]   = useState(()=>restored? restored.stateFilter : []);
+  const [cityFilter, setCityFilter]     = useState(()=>restored? restored.cityFilter : []);
+  const [productFilter, setProductFilter] = useState(()=>restored? restored.productFilter : []);
+  const [sourceFilter, setSourceFilter] = useState(()=>restored? restored.sourceFilter : []);
+  const [typeFilter, setTypeFilter]     = useState(()=>restored? restored.typeFilter : 'all');
+
+  const [sortCol, setSortCol] = useState(()=>restored? restored.sortCol : 'total_days');
+  const [sortDir, setSortDir] = useState(()=>restored? restored.sortDir : 'desc');   // 'asc' | 'desc'
+
+  const [sidebarTab, setSidebarTab] = useState(()=>restored? restored.sidebarTab : 'cities');   // 'cities' | 'products'
+  const [sidebarSearch, setSidebarSearch] = useState(()=>restored? restored.sidebarSearch : '');
+  const [sidebarOpen, setSidebarOpen] = useState(()=>restored? restored.sidebarOpen : true);
+
+  // persist on every change so returning to this tab restores exactly where the user left off
+  useEffect(()=>{
+    const state = {
+      marketFilter, stateFilter, cityFilter, productFilter, sourceFilter, typeFilter,
+      sortCol, sortDir, sidebarTab, sidebarSearch, sidebarOpen,
+    };
+    try { localStorage.setItem(MI_FILTER_STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  }, [marketFilter, stateFilter, cityFilter, productFilter, sourceFilter, typeFilter, sortCol, sortDir, sidebarTab, sidebarSearch, sidebarOpen]);
+
+  function toggle(setter){ return (label)=> setter(prev => prev.includes(label) ? prev.filter(x=>x!==label) : [...prev, label]); }
+  const toggleMarket  = toggle(setMarketFilter);
+  const toggleState   = toggle(setStateFilter);
+  const toggleCity    = toggle(setCityFilter);
+  const toggleProduct = toggle(setProductFilter);
+  const toggleSource  = toggle(setSourceFilter);
+
+  function cycleSort(col){
+    if (sortCol!==col) { setSortCol(col); setSortDir('asc'); return; }
+    if (sortDir==='asc') { setSortDir('desc'); return; }
+    // third click: back to default
+    setSortCol('total_days'); setSortDir('desc');
+  }
+
+  const markets = useMemo(()=>[...new Set(allTours.map(t=>t.market).filter(Boolean))].sort(), [allTours]);
+  const states  = useMemo(()=>[...new Set(allTours.flatMap(t=>t.states||[t.state]).filter(Boolean))].sort(), [allTours]);
+
+  // Cross-filter predicate, parameterized so a chart can compute its own bar
+  // list against "every filter except my own dimension" — otherwise selecting
+  // the first option in a dimension collapses that same chart down to just
+  // the selected bar, making a second selection in the same chart impossible.
+  // Fix 1: every dimension is OR-within / AND-across. Market/state/source were
+  // already OR (some()/includes()) — productFilter used .every(), requiring a
+  // tour to contain ALL selected products (AND) instead of ANY (OR). Switched
+  // to .some() so "(product A OR product B) AND (market A OR market B) AND ..."
+  // holds across the whole filter set, matching every other dimension.
+  function passesFilters(t, opts){
+    opts = opts || {};
+    if (!opts.skipMarket  && marketFilter.length && !marketFilter.includes(t.market)) return false;
+    if (!opts.skipState   && stateFilter.length && !stateFilter.some(s=>(t.states||[t.state]).includes(s))) return false;
+    if (!opts.skipCity    && cityFilter.length && !cityFilter.some(c=>(t.city||[]).includes(c))) return false;
+    if (!opts.skipProduct && productFilter.length && !productFilter.some(p=>(t.products||[]).includes(p))) return false;
+    if (!opts.skipSource  && sourceFilter.length && !sourceFilter.includes(t.source)) return false;
+    if (typeFilter!=='all' && t.source_type!==typeFilter) return false;
+    return true;
+  }
+
+  const filtered = useMemo(()=>allTours.filter(t=>passesFilters(t)),
+    [allTours, marketFilter, stateFilter, cityFilter, productFilter, sourceFilter, typeFilter]);
+
+  // per-dimension scopes for chart bar lists — each excludes its own filter
+  // so every not-yet-selected option in that same chart stays clickable
+  const scopeForMarket  = useMemo(()=>allTours.filter(t=>passesFilters(t,{skipMarket:true})),
+    [allTours, stateFilter, cityFilter, productFilter, sourceFilter, typeFilter]);
+  const scopeForState   = useMemo(()=>allTours.filter(t=>passesFilters(t,{skipState:true})),
+    [allTours, marketFilter, cityFilter, productFilter, sourceFilter, typeFilter]);
+  const scopeForCity    = useMemo(()=>allTours.filter(t=>passesFilters(t,{skipCity:true})),
+    [allTours, marketFilter, stateFilter, productFilter, sourceFilter, typeFilter]);
+  const scopeForSource  = useMemo(()=>allTours.filter(t=>passesFilters(t,{skipSource:true})),
+    [allTours, marketFilter, stateFilter, cityFilter, productFilter, typeFilter]);
+  const scopeForProduct = useMemo(()=>allTours.filter(t=>passesFilters(t,{skipProduct:true})),
+    [allTours, marketFilter, stateFilter, cityFilter, sourceFilter, typeFilter]);
+
+  // Fix 1: gap analysis's "boards promote" side ignores the market filter entirely
+  // (board/Reference tours carry no real market of origin — they all show
+  // market="Australia" because that's the tourism board's home country, not a
+  // sales market — so market-filtering them made the left panel go empty for
+  // any non-Australia market). State/city/type filters still apply normally.
+  const boardScope = useMemo(()=>allTours.filter(t=>{
+    if (t.source_type!=='Board') return false;
+    if (stateFilter.length && !stateFilter.some(s=>(t.states||[t.state]).includes(s))) return false;
+    if (cityFilter.length && !cityFilter.some(c=>(t.city||[]).includes(c))) return false;
+    if (productFilter.length && !productFilter.every(p=>(t.products||[]).includes(p))) return false;
+    if (sourceFilter.length && !sourceFilter.includes(t.source)) return false;
+    return true;
+  }), [allTours, stateFilter, cityFilter, productFilter, sourceFilter]);
+
+  const sorted = useMemo(()=>{
+    const arr = filtered.slice();
+    const dir = sortDir==='asc'? 1 : -1;
+    arr.sort((a,b)=>{
+      let av = a[sortCol], bv = b[sortCol];
+      if (sortCol==='total_days') { av = av||0; bv = bv||0; return (av-bv)*dir; }
+      av = (av||'').toString().toLowerCase(); bv = (bv||'').toString().toLowerCase();
+      return av<bv? -1*dir : av>bv? 1*dir : 0;
+    });
+    return arr;
+  }, [filtered, sortCol, sortDir]);
+
+  const stats = useMemo(()=>{
+    // each bar-list is built from its own "all filters except this dimension"
+    // scope, so every not-yet-selected bar in a chart stays visible/clickable
+    // after another bar in that same chart has already been selected.
+    const mktMap = new Map();
+    scopeForMarket.forEach(t=>mktMap.set(t.market, (mktMap.get(t.market)||0)+1));
+    const byMarket = [...mktMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    const stMap = new Map();
+    scopeForState.forEach(t=>(t.states||[t.state]).forEach(s=>{ if(s) stMap.set(s,(stMap.get(s)||0)+1); }));
+    const byState = [...stMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    const cityMap = new Map();
+    scopeForCity.forEach(t=>(t.city||[]).forEach(c=>cityMap.set(c,(cityMap.get(c)||0)+1)));
+    const byCity = [...cityMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    const prodMap = new Map();
+    scopeForProduct.forEach(t=>(t.products||[]).forEach(p=>prodMap.set(p,(prodMap.get(p)||0)+1)));
+    const byProduct = [...prodMap.entries()].map(([label,v])=>({label,v})).sort((a,b)=>b.v-a.v);
+
+    const durSum = new Map(), durCount = new Map();
+    scopeForMarket.forEach(t=>{
+      durSum.set(t.market, (durSum.get(t.market)||0)+(t.total_days||0));
+      durCount.set(t.market, (durCount.get(t.market)||0)+1);
+    });
+    const avgDuration = [...durSum.entries()]
+      .map(([label,sum])=>({label, v: Math.round((sum/durCount.get(label))*10)/10}))
+      .sort((a,b)=>b.v-a.v);
+
+    const srcDurSum = new Map(), srcDurCount = new Map();
+    scopeForSource.forEach(t=>{
+      srcDurSum.set(t.source, (srcDurSum.get(t.source)||0)+(t.total_days||0));
+      srcDurCount.set(t.source, (srcDurCount.get(t.source)||0)+1);
+    });
+    const avgDurationBySource = [...srcDurSum.entries()]
+      .map(([label,sum])=>({label, displayLabel: sourceName(label), v: Math.round((sum/srcDurCount.get(label))*10)/10}))
+      .sort((a,b)=>b.v-a.v);
+
+    // "Tours per source" count chart — same scopeForSource as avg-duration-by-source
+    // so both charts show/hide the same not-yet-selected sources and stay in sync
+    // (they share the same sourceFilter/toggleSource, so selecting in either updates both).
+    const srcCountMap = new Map();
+    scopeForSource.forEach(t=>srcCountMap.set(t.source, (srcCountMap.get(t.source)||0)+1));
+    const toursPerSource = [...srcCountMap.entries()].map(([label,v])=>({label, displayLabel: sourceName(label), v})).sort((a,b)=>b.v-a.v);
+
+    // market x source_type grouped counts, for the "Tours by source location" chart
+    const mktTypeMap = new Map();
+    scopeForMarket.forEach(t=>{
+      if (!mktTypeMap.has(t.market)) mktTypeMap.set(t.market, {label:t.market, Competitor:0, Board:0});
+      mktTypeMap.get(t.market)[t.source_type==='Board'?'Board':'Competitor']++;
+    });
+    const byMarketType = [...mktTypeMap.values()].sort((a,b)=>(b.Competitor+b.Board)-(a.Competitor+a.Board));
+
+    // gap analysis: left side (boards) uses boardScope (Fix 1, ignores market);
+    // right side uses the product-exclusive scope so a selected gap item stays
+    // visible/clickable in its own list, same reasoning as the charts above.
+    const boardProds = new Set(), compProds = new Set();
+    boardScope.forEach(t=>(t.products||[]).forEach(p=>boardProds.add(p)));
+    scopeForProduct.filter(t=>t.source_type!=='Board').forEach(t=>(t.products||[]).forEach(p=>compProds.add(p)));
+    const boardOnly = [...boardProds].filter(p=>!compProds.has(p)).sort();
+    const compOnly  = [...compProds].filter(p=>!boardProds.has(p)).sort();
+
+    // Coverage heatmap: rows = competitor markets + a synthetic "Boards" row
+    // (source_type==='Board' tours have no real sales market — same reasoning
+    // as boardScope/Fix 1 — so they're bucketed by state only, not market).
+    // Built from a scope that excludes BOTH market and state filters (its own
+    // two dimensions) so every not-yet-selected row/column stays clickable,
+    // consistent with the scopeForX pattern used by the charts above.
+    const heatmapScope = allTours.filter(t=>passesFilters(t,{skipMarket:true, skipState:true}));
+    const heatmapMarkets = [...new Set(heatmapScope.filter(t=>t.source_type!=='Board').map(t=>t.market).filter(Boolean))].sort();
+    const heatmapRows = [...heatmapMarkets, 'Boards'];
+    const heatmapCells = {};   // 'Market|State' -> count
+    heatmapScope.forEach(t=>{
+      const rowKey = t.source_type==='Board' ? 'Boards' : t.market;
+      if (!rowKey) return;
+      (t.states||[t.state]).forEach(s=>{
+        if (!s) return;
+        const key = rowKey+'|'+s;
+        heatmapCells[key] = (heatmapCells[key]||0)+1;
+      });
+    });
+    // Fix 3: normalize the colour ramp separately for the Boards row vs the
+    // competitor-market rows. A single shared max (dominated by the much
+    // larger Board counts) washed out all the small competitor-market cells
+    // to the same faint shade regardless of their own relative differences.
+    const boardCellVals = HEATMAP_STATE_ORDER.map(s=>heatmapCells['Boards|'+s]||0);
+    const compCellVals  = heatmapMarkets.flatMap(m=>HEATMAP_STATE_ORDER.map(s=>heatmapCells[m+'|'+s]||0));
+    const heatmapMaxBoard = Math.max(1, ...boardCellVals);
+    const heatmapMaxComp  = Math.max(1, ...compCellVals);
+
+    // live summary line above the itinerary table — always reflects the FULL
+    // active filter set (every dimension), unlike the per-chart scopes above.
+    const summaryUniqueSources = new Set(filtered.map(t=>t.source)).size;
+    const summaryUniqueMarkets = new Set(filtered.map(t=>t.market)).size;
+    const summaryUniqueStates  = new Set(filtered.flatMap(t=>t.states||[t.state]).filter(Boolean)).size;
+    const summaryUniqueProducts = new Set(filtered.flatMap(t=>t.products||[])).size;
+    const summaryAvgDays = filtered.length
+      ? Math.round((filtered.reduce((s,t)=>s+(t.total_days||0),0)/filtered.length)*10)/10
+      : 0;
+    const summary = {
+      tours: filtered.length, sources: summaryUniqueSources, markets: summaryUniqueMarkets,
+      states: summaryUniqueStates, avgDays: summaryAvgDays, products: summaryUniqueProducts,
+    };
+
+    // KPI cards row — always the full active filter set (every dimension),
+    // same basis as the summary line above the table.
+    const compCount = filtered.filter(t=>t.source_type!=='Board').length;
+    const boardCount = filtered.length - compCount;
+    const kpiTotal = compCount + boardCount;
+    const kpi = {
+      tours: filtered.length, sources: summaryUniqueSources, markets: summaryUniqueMarkets,
+      avgDays: summaryAvgDays, products: summaryUniqueProducts,
+      compCount, boardCount,
+      compPct: kpiTotal? Math.round(compCount/kpiTotal*100) : 0,
+      boardPct: kpiTotal? 100-Math.round(compCount/kpiTotal*100) : 0,
+    };
+
+    return {byMarket, byState, byCity, byProduct, avgDuration, avgDurationBySource, toursPerSource, byMarketType, boardOnly, compOnly, summary, kpi,
+      heatmapRows, heatmapCells, heatmapMaxBoard, heatmapMaxComp};
+  }, [filtered, boardScope, scopeForMarket, scopeForState, scopeForCity, scopeForSource, scopeForProduct,
+      allTours, marketFilter, stateFilter, cityFilter, productFilter, sourceFilter, typeFilter]);
+
+  // ---- Insight cards: auto-generated from the currently filtered dataset ----
+  // All 5 rules read only from `filtered` (respects every active filter, including
+  // typeFilter/sourceFilter/cityFilter/productFilter) plus per-market/per-state/per-source
+  // tallies each rule needs. No AI/API — pure client-side aggregation, recomputed
+  // whenever the filtered set changes.
+  const insightCards = useMemo(()=>{
+    const ALL_MARKETS = ['India','Singapore','UK','Australia'];
+    const activeMarkets = marketFilter.length ? marketFilter : ALL_MARKETS;
+
+    // tours-by-market-by-state count, competitor only (boards have no sales market)
+    const compByMarketState = new Map(); // 'Market|State' -> count
+    const compByMarket = new Map();      // Market -> count (for dominance rule denominator)
+    const boardByState = new Map();      // State -> count
+    const durByMarketState = new Map();  // 'Market|State' -> {sum,count}
+    const boardDurByState = new Map();   // State -> {sum,count}
+    const marketsPerState = new Map();   // State -> Set(markets present, competitor only)
+    const sourceByMarket = new Map();    // Market -> Map(source -> count)
+
+    filtered.forEach(t=>{
+      const isBoard = t.source_type==='Board';
+      const states = t.states && t.states.length ? t.states : (t.state? [t.state] : []);
+      if (isBoard){
+        states.forEach(s=>{
+          boardByState.set(s, (boardByState.get(s)||0)+1);
+          const bd = boardDurByState.get(s) || {sum:0,count:0};
+          bd.sum += (t.total_days||0); bd.count += 1;
+          boardDurByState.set(s, bd);
+        });
+      } else {
+        const m = t.market;
+        compByMarket.set(m, (compByMarket.get(m)||0)+1);
+        if (!sourceByMarket.has(m)) sourceByMarket.set(m, new Map());
+        sourceByMarket.get(m).set(t.source, (sourceByMarket.get(m).get(t.source)||0)+1);
+        states.forEach(s=>{
+          const key = m+'|'+s;
+          compByMarketState.set(key, (compByMarketState.get(key)||0)+1);
+          const dd = durByMarketState.get(key) || {sum:0,count:0};
+          dd.sum += (t.total_days||0); dd.count += 1;
+          durByMarketState.set(key, dd);
+          if (!marketsPerState.has(s)) marketsPerState.set(s, new Set());
+          marketsPerState.get(s).add(m);
+        });
+      }
+    });
+
+    const allStates = HEATMAP_STATE_ORDER;
+    const cards = { gap:[], untapped:[], duration:[], dominance:[], saturated:[] };
+
+    // Rule 1 — Coverage gap: market has <3 tours in a state, boards have >20 in that state
+    activeMarkets.forEach(m=>{
+      allStates.forEach(s=>{
+        const compN = compByMarketState.get(m+'|'+s) || 0;
+        const boardN = boardByState.get(s) || 0;
+        if (compN < 3 && boardN > 20){
+          cards.gap.push({
+            market:m, state:s, compN, boardN,
+            ratio: boardN / Math.max(1,compN),
+          });
+        }
+      });
+    });
+    cards.gap.sort((a,b)=>b.ratio-a.ratio);
+
+    // Rule 2 — Untapped combination: market has 0 tours in a state boards cover >15
+    activeMarkets.forEach(m=>{
+      allStates.forEach(s=>{
+        const compN = compByMarketState.get(m+'|'+s) || 0;
+        const boardN = boardByState.get(s) || 0;
+        if (compN === 0 && boardN > 15){
+          cards.untapped.push({market:m, state:s, boardN});
+        }
+      });
+    });
+    cards.untapped.sort((a,b)=>b.boardN-a.boardN);
+
+    // Rule 3 — Duration gap: market avg duration >2 days below board avg, same states
+    activeMarkets.forEach(m=>{
+      let mSum=0, mCount=0, bSum=0, bCount=0;
+      allStates.forEach(s=>{
+        const dd = durByMarketState.get(m+'|'+s);
+        const bd = boardDurByState.get(s);
+        if (dd && dd.count && bd && bd.count){
+          mSum += dd.sum; mCount += dd.count;
+          bSum += bd.sum; bCount += bd.count;
+        }
+      });
+      if (mCount && bCount){
+        const mAvg = mSum/mCount, bAvg = bSum/bCount;
+        const gapDays = bAvg - mAvg;
+        if (gapDays > 2){
+          cards.duration.push({market:m, mAvg: Math.round(mAvg*10)/10, bAvg: Math.round(bAvg*10)/10, gapDays: Math.round(gapDays*10)/10});
+        }
+      }
+    });
+    cards.duration.sort((a,b)=>b.gapDays-a.gapDays);
+
+    // Rule 4 — Saturated market: state has tours from all 4 markets AND total competitor tours >40
+    allStates.forEach(s=>{
+      const mktsHere = marketsPerState.get(s) || new Set();
+      if (ALL_MARKETS.every(m=>mktsHere.has(m))){
+        const total = ALL_MARKETS.reduce((sum,m)=>sum+(compByMarketState.get(m+'|'+s)||0), 0);
+        if (total > 40) cards.saturated.push({state:s, total});
+      }
+    });
+    cards.saturated.sort((a,b)=>b.total-a.total);
+
+    // Rule 5 — Single source dominance: one source >50% of a market's tours
+    sourceByMarket.forEach((srcMap, m)=>{
+      const marketTotal = compByMarket.get(m) || 0;
+      if (!marketTotal) return;
+      srcMap.forEach((count, src)=>{
+        const pct = count/marketTotal*100;
+        if (pct > 50){
+          cards.dominance.push({market:m, source:src, count, pct: Math.round(pct)});
+        }
+      });
+    });
+    cards.dominance.sort((a,b)=>b.pct-a.pct);
+
+    // Priority order: untapped -> gap -> duration -> dominance -> saturated, cap at 5 total
+    const out = [];
+    const RED='#DC2626', BLUE='#185FA5', AMBER='#D97706', GREY='#78716C', ORANGE='#E8732A';
+
+    cards.untapped.forEach(c=>out.push({
+      id:'untapped|'+c.market+'|'+c.state, color:BLUE, icon:'○',
+      headline:`No ${c.market} tours in ${c.state}`,
+      line1:`${c.market} operators: 0 tours`,
+      line2:`Boards promote ${c.state} in ${c.boardN} tours — zero competition`,
+      action:{label:`Start a ${c.state} tour`, state:c.state, sourceType:'Board'},
+      market:c.market, state:c.state,
+    }));
+    cards.gap.forEach(c=>out.push({
+      id:'gap|'+c.market+'|'+c.state, color:RED, icon:'▲',
+      headline:`${c.market} barely covers ${c.state}`,
+      line1:`${c.market} operators: ${c.compN} tour${c.compN===1?'':'s'} in ${c.state}`,
+      line2:`Tourism boards: ${c.boardN} tours in ${c.state} — high board backing`,
+      action:{label:`Explore ${c.state} templates`, state:c.state, sourceType:'Board'},
+      market:c.market, state:c.state,
+    }));
+    cards.duration.forEach(c=>out.push({
+      id:'duration|'+c.market, color:AMBER, icon:'◐',
+      headline:`${c.market} tours are shorter than board recommendations`,
+      line1:`${c.market} average: ${c.mAvg} days · Board average: ${c.bAvg} days`,
+      line2:`Gap of ${c.gapDays} days — room for longer itineraries in this market`,
+      action:null,
+    }));
+    cards.dominance.forEach(c=>out.push({
+      id:'dominance|'+c.market+'|'+c.source, color:ORANGE, icon:'●',
+      headline:`${sourceName(c.source)} dominates ${c.market} coverage`,
+      line1:`${sourceName(c.source)}: ${c.count} tours — ${c.pct}% of all ${c.market} tours`,
+      line2:`Other operators have limited presence — potential white space`,
+      action:null,
+    }));
+    cards.saturated.forEach(c=>out.push({
+      id:'saturated|'+c.state, color:GREY, icon:'■',
+      headline:`${c.state} is highly competitive`,
+      line1:`All markets operate here — ${c.total} total competitor tours`,
+      line2:`Differentiate on product or experience, not destination`,
+      action:null,
+    }));
+
+    return out.slice(0,5);
+  }, [filtered, marketFilter]);
+
+  // 3a — per-card enrichment: missing products, recommended duration, best template match.
+  // Computed from window.MARKET_DATA (board vs competitor tours for the card's market+state)
+  // and allTemplatesGlobal (for the highest board-alignment template touching that state).
+  function cardEnrichment(market, state){
+    if (!market || !state) return null;
+    const boardTours = allTours.filter(t=>t.source_type==='Board' && (t.states||[t.state]).includes(state));
+    const compTours   = allTours.filter(t=>t.source_type==='Competitor' && t.market===market && (t.states||[t.state]).includes(state));
+
+    // top products boards push in this state, that this market's operators don't sell here
+    const boardProductCount = new Map();
+    boardTours.forEach(t=>(t.products||[]).forEach(p=>boardProductCount.set(p, (boardProductCount.get(p)||0)+1)));
+    const compProductSet = new Set(compTours.flatMap(t=>t.products||[]));
+    const missingProductsAll = [...boardProductCount.entries()]
+      .filter(([p])=>!compProductSet.has(p))
+      .sort((a,b)=>b[1]-a[1])
+      .map(([p])=>p);
+    const missingProducts = missingProductsAll.slice(0,3);
+
+    // recommended duration = max(this market's overall avg duration, board median duration for this state).
+    // Median (not mean) of board tours avoids short outlier board itineraries pulling the number down;
+    // the market-avg floor keeps the recommendation from undershooting what the market actually sells.
+    const durs = boardTours.map(t=>t.total_days||0).filter(Boolean).sort((a,b)=>a-b);
+    const boardMedian = durs.length
+      ? (durs.length%2 ? durs[(durs.length-1)/2] : (durs[durs.length/2-1]+durs[durs.length/2])/2)
+      : 0;
+    const marketDurs = allTours.filter(t=>t.source_type==='Competitor' && t.market===market).map(t=>t.total_days||0).filter(Boolean);
+    const marketAvg = marketDurs.length? marketDurs.reduce((a,b)=>a+b,0)/marketDurs.length : 0;
+    const avgDur = Math.max(marketAvg, boardMedian);
+    const durLow = Math.round(avgDur)-1, durHigh = Math.round(avgDur)+1;
+
+    // best template touching this state, by board alignment %
+    const prodInfoFor = (s,name)=>{ const c=catalog && catalog[s]; return (c&&c.products) ? c.products[name] : null; };
+    let bestTemplate = null, bestPct = -1;
+    (allTemplatesGlobal||[]).forEach(t=>{
+      if (!(t.states||[]).includes(state)) return;
+      let board=0, resolved=0;
+      (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ const info=prodInfoFor(d.state,p); if(info){ resolved++; if(info.board) board++; } }));
+      if (!resolved) return;
+      const pct = Math.round(board/resolved*100);
+      if (pct > bestPct){ bestPct = pct; bestTemplate = t; }
+    });
+
+    // most common Day-1 (arrival) city among board templates touching this state
+    const arrivalCityCount = new Map();
+    (allTemplatesGlobal||[]).forEach(t=>{
+      if (t.type!=='Board' || !(t.states||[]).includes(state)) return;
+      const c = t.days && t.days[0] && t.days[0].city;
+      if (c) arrivalCityCount.set(c, (arrivalCityCount.get(c)||0)+1);
+    });
+    const arrivalCity = [...arrivalCityCount.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+    return {
+      missingProducts, missingProductsAll, avgDur: Math.round(avgDur), durLow, durHigh,
+      bestTemplate, bestPct: bestTemplate? bestPct : null,
+      arrivalCity: arrivalCity? arrivalCity[0] : (state||''),
+    };
+  }
+
+  const MKT_COLORS = ['#185FA5','#1D9E75','#E8732A','#9333EA','#0D9488','#DC2626','#F59E0B'];
+  const COMP_COL  = '#E8732A';
+  const BOARD_COL = '#1D9E75';
+
+  const selectClass = {border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 10px',fontSize:'12px',background:'#fff',cursor:'pointer'};
+
+  const hasActiveFilters = marketFilter.length>0 || stateFilter.length>0 || cityFilter.length>0 || productFilter.length>0 || sourceFilter.length>0 || typeFilter!=='all';
+  function clearAll(){
+    setMarketFilter([]); setStateFilter([]); setCityFilter([]); setProductFilter([]); setSourceFilter([]); setTypeFilter('all');
+    try { localStorage.removeItem(MI_FILTER_STORAGE_KEY); } catch(e) {}
+  }
+
+  const thStyle = (col) => ({cursor:'pointer',userSelect:'none',color:sortCol===col?'#27500A':'#57534e',display:'flex',alignItems:'center'});
+
+  const columns = [
+    ['tour_name','Tour name','2.2fr'],['source','Source','1fr'],['market','Market','0.8fr'],
+    ['state','State','0.6fr'],['total_days','Days','0.5fr'],['source_type','Type','0.8fr'],
+  ];
+  const gridCols = columns.map(c=>c[2]).join(' ');
+
+  // Fix 3: sidebar list of cities or products, searchable, checkbox multi-select
+  const sidebarSelected = sidebarTab==='cities'? cityFilter : productFilter;
+  const sidebarToggle   = sidebarTab==='cities'? toggleCity : toggleProduct;
+  // Fix 1: selected items float to their own group at the top, live-updating as checkboxes toggle
+  const {sidebarSelectedItems, sidebarRestItems} = useMemo(()=>{
+    const src = sidebarTab==='cities'? stats.byCity : stats.byProduct;
+    const q = sidebarSearch.trim().toLowerCase();
+    const list = q? src.filter(x=>x.label.toLowerCase().includes(q)) : src;
+    const selected = [], rest = [];
+    list.forEach(x=>{ (sidebarSelected.includes(x.label)? selected : rest).push(x); });
+    return {sidebarSelectedItems: selected.slice(0,200), sidebarRestItems: rest.slice(0,200)};
+  }, [sidebarTab, sidebarSearch, stats.byCity, stats.byProduct, sidebarSelected]);
+
+  return (
+    <div style={{padding:'18px 20px',display:'flex',gap:'16px',alignItems:'flex-start'}}>
+    <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'16px'}}>
+
+      {/* ── filters bar ── */}
+      <div style={{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap',background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'12px 14px'}}>
+        <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em'}}>Filters</div>
+
+        <select value={marketFilter.length===1?marketFilter[0]:''} onChange={e=>{ if(e.target.value) toggleMarket(e.target.value); }} style={selectClass}>
+          <option value="">{marketFilter.length>1? 'Multiple' : marketFilter.length===1? marketFilter[0] : 'All markets'}</option>
+          {markets.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+
+        <select value={stateFilter.length===1?stateFilter[0]:''} onChange={e=>{ if(e.target.value) toggleState(e.target.value); }} style={selectClass}>
+          <option value="">{stateFilter.length>1? 'Multiple' : stateFilter.length===1? stateFilter[0] : 'All states'}</option>
+          {states.map(s=><option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={selectClass}>
+          <option value="all">All source types</option>
+          <option value="Competitor">Competitor</option>
+          <option value="Board">Board</option>
+        </select>
+
+        {cityFilter.length? <span style={{fontSize:'11px',color:'#27500A',background:TINT,border:'0.5px solid #C0DD97',borderRadius:'99px',padding:'3px 10px'}}>{cityFilter.length} {cityFilter.length===1?'city':'cities'}</span>:null}
+        {productFilter.length? <span style={{fontSize:'11px',color:'#27500A',background:TINT,border:'0.5px solid #C0DD97',borderRadius:'99px',padding:'3px 10px'}}>{productFilter.length} product(s)</span>:null}
+        {sourceFilter.length? <span style={{fontSize:'11px',color:'#27500A',background:TINT,border:'0.5px solid #C0DD97',borderRadius:'99px',padding:'3px 10px'}}>{sourceFilter.length} source(s)</span>:null}
+
+        <div style={{flex:1}}/>
+        <span style={{fontSize:'12px',color:'#57534e'}}>{filtered.length} of {allTours.length} tours</span>
+        {hasActiveFilters? <button onClick={clearAll} style={{...ghostBtn,padding:'4px 10px',fontSize:'11px'}}>✕ Clear all filters</button>:null}
+      </div>
+
+      {/* ── KPI cards row ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'10px'}}>
+        {[
+          ['Total tours', stats.kpi.tours.toLocaleString(), null],
+          ['Unique sources', stats.kpi.sources.toLocaleString(), null],
+          ['Markets covered', stats.kpi.markets.toLocaleString(), null],
+          ['Avg tour duration', stats.kpi.avgDays+' days', null],
+          ['Unique places', stats.kpi.products.toLocaleString(), null],
+          ['Competitor vs Board', null, 'split'],
+        ].map(([label,num,kind])=>(
+          <div key={label} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px'}}>
+            <div style={{fontSize:'10px',color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'4px'}}>{label}</div>
+            {kind==='split'? (
+              <>
+                <div style={{fontSize:'20px',fontWeight:700,color:'#1c1917'}}>{stats.kpi.compPct}% / {stats.kpi.boardPct}%</div>
+                <div style={{display:'flex',gap:'3px',marginTop:'6px',height:'6px',borderRadius:'3px',overflow:'hidden'}}>
+                  <div style={{width:stats.kpi.compPct+'%',background:COMP_COL}}/>
+                  <div style={{width:stats.kpi.boardPct+'%',background:BOARD_COL}}/>
+                </div>
+              </>
+            ):(
+              <div style={{fontSize:'26px',fontWeight:700,color:'#1c1917'}}>{num}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── insight cards: auto-generated from the current filtered dataset, no AI/API ── */}
+      <div>
+        <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'8px'}}>Insights</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'10px'}}>
+          {(insightCards.length? insightCards : [{
+            id:'none', color:'#78716C', icon:'—',
+            headline:'No significant gaps found for this filter combination',
+            line1:'', line2:'', action:null,
+          }]).map(c=>{
+            const enr = c.market && c.state ? cardEnrichment(c.market, c.state) : null;
+            return (
+            <div key={c.id} style={{
+              flex:'1 1 260px', minWidth:'240px', maxWidth:'320px',
+              background:'#fff', border:'0.5px solid #e7e5e4', borderLeft:`4px solid ${c.color}`,
+              borderRadius:'12px', padding:'12px 14px',
+              display:'flex', flexDirection:'column', gap:'4px',
+              animation:'miInsightFadeIn .25s ease',
+            }}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:'8px'}}>
+                <div style={{fontSize:'13px',color:c.color,lineHeight:1.3}}>{c.icon}</div>
+                <div style={{fontSize:'13px',fontWeight:500,color:'#1c1917',lineHeight:1.35}}>{c.headline}</div>
+              </div>
+              {c.line1? <div style={{fontSize:'12px',color:'#78716C',marginLeft:'21px'}}>{c.line1}</div>:null}
+              {c.line2? <div style={{fontSize:'12px',color:'#78716C',marginLeft:'21px'}}>{c.line2}</div>:null}
+
+              {enr && enr.missingProducts.length? (
+                <div style={{marginLeft:'21px',marginTop:'6px'}}>
+                  <div style={{fontSize:'10px',color:'#78716C',marginBottom:'4px'}}>Boards promote — competitors missing:</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
+                    {enr.missingProducts.map(p=><span key={p} style={chip('board',{small:true})}>{p}</span>)}
+                  </div>
+                </div>
+              ):null}
+
+              {enr && enr.avgDur? (
+                <div style={{marginLeft:'21px',marginTop:'6px',fontSize:'11px',color:'#57534e'}}>
+                  Recommended duration: <b>{enr.durLow}–{enr.durHigh} days</b>
+                </div>
+              ):null}
+
+              {enr && enr.bestTemplate? (
+                <div style={{marginLeft:'21px',marginTop:'2px',fontSize:'11px',color:'#57534e'}}>
+                  Best starting point: <b>{enr.bestTemplate.name}</b> ({enr.bestPct}% board alignment)
+                </div>
+              ):null}
+
+              {enr? (
+                <div style={{marginTop:'10px'}}>
+                  <button
+                    onClick={()=>onGenerateDraft && onGenerateDraft(c.market, c.state, enr)}
+                    style={{...primaryBtn, width:'100%', padding:'10px 14px', fontSize:'13px'}}>
+                    Generate draft itinerary →
+                  </button>
+                </div>
+              ) : c.action ? (
+                <div style={{marginLeft:'21px',marginTop:'4px'}}>
+                  <button
+                    onClick={()=>onGoToTemplateFiltered && onGoToTemplateFiltered({state:c.action.state, sourceType:c.action.sourceType})}
+                    style={{...ghostBtn, padding:'4px 10px', fontSize:'11px'}}>
+                    {c.action.label}
+                  </button>
+                </div>
+              ):null}
+            </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── row: market + states + competitor/board donut ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'12px'}}>
+        <ClickHBar items={stats.byMarket} title="Tours by Market" labelWidth={90}
+          colorFn={x=>MKT_COLORS[stats.byMarket.indexOf(x)%MKT_COLORS.length]}
+          selected={marketFilter}
+          onSelect={toggleMarket}/>
+        <ClickHBar items={stats.byState} title="Top States Covered" labelWidth={50}
+          colorFn={()=>BOARD_COL}
+          selected={stateFilter}
+          onSelect={toggleState}/>
+        <DonutChart competitor={stats.kpi.compCount} board={stats.kpi.boardCount}
+          compColor={COMP_COL} boardColor={BOARD_COL}
+          selected={typeFilter} onSelect={t=>setTypeFilter(prev=>prev===t?'all':t)}/>
+      </div>
+
+      {/* ── row: cities (tall) + avg duration by market / tours per source stack ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',alignItems:'stretch'}}>
+        <ClickHBar items={stats.byCity.slice(0,20)} title="Top 20 Cities Covered" labelWidth={140} maxHeight="520px"
+          colorFn={()=>'#185FA5'}
+          selected={cityFilter}
+          onSelect={toggleCity}/>
+        <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          <ClickHBar items={stats.avgDuration} title="Avg Tour Duration by Market (days)" labelWidth={110}
+            colorFn={x=>MKT_COLORS[stats.avgDuration.indexOf(x)%MKT_COLORS.length]}
+            selected={marketFilter}
+            onSelect={toggleMarket}/>
+          <ClickHBar items={stats.toursPerSource.filter(x=>x.v>=3)} title="Tours per source (count)" labelWidth={140}
+            colorFn={()=>'#185FA5'}
+            selected={sourceFilter}
+            onSelect={toggleSource}
+            note="Sources with fewer than 3 tours in current filter are hidden"/>
+        </div>
+      </div>
+
+      {/* ── avg duration by source — full width ──
+           Fix: same >=3-tour threshold as Tours per source, applied via a
+           lookup into toursPerSource so both charts hide the same sources
+           and stay consistent as filters change. */}
+      <ClickHBar items={stats.avgDurationBySource.filter(x=>(stats.toursPerSource.find(y=>y.label===x.label)||{v:0}).v>=3)} title="Avg duration by source (days)" labelWidth={160}
+        colorFn={()=>COMP_COL}
+        selected={sourceFilter}
+        onSelect={toggleSource}
+        note="Click a source to filter — stays in sync with Tours per source above · sources with fewer than 3 tours in current filter are hidden"/>
+
+      {/* ── coverage heatmap: market x state ──
+           Fix 3: row headers, column headers, and every other selected
+           element in this tab (ClickHBar bars, sidebar checkboxes) share one
+           highlight style — background:#EAF3DE, border:1px solid #97C459,
+           color:#27500A, fontWeight:700, '✓ ' prefix. Selected cells get no
+           extra border of their own — the row/column header highlight already
+           marks the selection; the cell just keeps its normal intensity fill. */}
+      <div>
+        <div style={{fontSize:'13px',fontWeight:700,color:'#1c1917',marginBottom:'2px'}}>Market × State coverage</div>
+        <div style={{fontSize:'11px',color:'#a8a29e',marginBottom:'2px'}}>How many tours each market runs per state — darker = more coverage</div>
+        <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'12px'}}>Cell counts show tours per state. A tour visiting multiple states appears in each relevant cell.</div>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',overflowX:'auto'}}>
+          <table style={{borderCollapse:'collapse',width:'100%'}}>
+            <thead>
+              <tr>
+                <th style={{padding:'6px 10px',textAlign:'left'}}/>
+                {HEATMAP_STATE_ORDER.map(s=>{
+                  const isSel = stateFilter.includes(s);
+                  return (
+                    <th key={s} onClick={()=>toggleState(s)}
+                      style={{padding:'6px 10px',textAlign:'center',cursor:'pointer',fontSize:'11px',fontWeight:isSel?700:600,borderRadius:'4px',
+                        color:isSel?'#27500A':'#57534e',background:isSel?'#EAF3DE':'transparent',border:isSel?'1px solid #97C459':'1px solid transparent'}}>
+                      {isSel?'✓ ':''}{s}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {stats.heatmapRows.map(row=>{
+                const isBoardsRow = row==='Boards';
+                const isRowSel = isBoardsRow ? typeFilter==='Board' : marketFilter.includes(row);
+                const rowColor = isBoardsRow ? BOARD_COL : '#185FA5';
+                const rowMax = isBoardsRow ? stats.heatmapMaxBoard : stats.heatmapMaxComp;
+                return (
+                  <tr key={row}>
+                    <td onClick={()=>isBoardsRow? setTypeFilter(prev=>prev==='Board'?'all':'Board') : toggleMarket(row)}
+                      style={{padding:'6px 10px',cursor:'pointer',fontSize:'11px',fontWeight:isRowSel?700:600,whiteSpace:'nowrap',borderRadius:'4px',
+                        color:isRowSel?'#27500A':'#57534e',background:isRowSel?'#EAF3DE':'transparent',border:isRowSel?'1px solid #97C459':'1px solid transparent'}}>
+                      {isRowSel?'✓ ':''}{row}
+                    </td>
+                    {HEATMAP_STATE_ORDER.map(s=>{
+                      const count = stats.heatmapCells[row+'|'+s] || 0;
+                      const intensity = count? 0.15 + 0.75*(count/rowMax) : 0;
+                      return (
+                        <td key={s} onClick={()=>{
+                              // Cell click sets BOTH dimensions to exactly this row+column
+                              // (replace, not toggle) so the table always matches the cell
+                              // count — toggling into whatever arrays were already selected
+                              // let stale market/state selections leak into the result.
+                              if (isBoardsRow){
+                                setTypeFilter('Board');
+                                setMarketFilter([]);
+                              } else {
+                                setTypeFilter('all');
+                                setMarketFilter([row]);
+                              }
+                              setStateFilter([s]);
+                            }}
+                          style={{padding:'6px 4px',textAlign:'center',cursor:'pointer',fontSize:'12px',fontWeight:count?700:400,
+                            minWidth:'56px',borderRadius:'5px',
+                            color:count? (intensity>0.55?'#fff':'#1c1917') : '#d6d3d1',
+                            background:count? rowColor+Math.round(intensity*255).toString(16).padStart(2,'0') : '#fafaf9'}}>
+                          {count || '—'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── itinerary table (sortable) ── */}
+      <div>
+        <div style={{fontSize:'11px',color:'#a8a29e',marginBottom:'4px'}}>
+          {stats.summary.tours} tours · {stats.summary.sources} sources · {stats.summary.markets} markets · {stats.summary.states} states · {stats.summary.avgDays} avg days · {stats.summary.products} products
+        </div>
+        <div style={{fontSize:'13px',fontWeight:700,color:'#1c1917',marginBottom:'10px'}}>Itineraries ({sorted.length})</div>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:gridCols,gap:'8px',padding:'8px 14px',background:'#f5f5f4',fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}}>
+            {columns.map(([col,label])=>(
+              <div key={col} onClick={()=>cycleSort(col)} style={thStyle(col)}>
+                {label}{sortCol===col?<SortArrow dir={sortDir}/>:null}
+              </div>
+            ))}
+          </div>
+          <div style={{maxHeight:'360px',overflowY:'auto'}}>
+            {sorted.map((t,i)=>(
+              <div key={i} onClick={()=>onGoToTemplate&&onGoToTemplate(t.tour_name, t.source)}
+                style={{display:'grid',gridTemplateColumns:gridCols,gap:'8px',padding:'8px 14px',fontSize:'11px',
+                  borderTop:'0.5px solid #f0efed',cursor:'pointer',alignItems:'center'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#fafaf9'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#1c1917'}} title={t.tour_name}>{t.tour_name}</div>
+                <div style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#57534e'}} title={sourceLabel(t.source)}>{sourceLabel(t.source)}</div>
+                <div style={{color:'#57534e'}}>{t.market}</div>
+                <div><span style={stateChipStyle(t.state, true)}>{t.state}</span></div>
+                <div style={{color:'#57534e'}}>{t.total_days}</div>
+                <div><span style={chip(t.source_type==='Board'?'board':'prod',{small:true})}>{t.source_type}</span></div>
+              </div>
+            ))}
+            {sorted.length===0? <div style={{padding:'20px',textAlign:'center',fontSize:'12px',color:'#a8a29e'}}>No tours match the current filters</div>:null}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    {/* ── Fix 3: collapsible sidebar panel — city / product search + checkbox multi-select ── */}
+    <div style={{width:sidebarOpen?'260px':'34px',minWidth:sidebarOpen?'260px':'34px',transition:'width .15s',flexShrink:0}}>
+      <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',overflow:'hidden',position:'sticky',top:'18px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',borderBottom:sidebarOpen?'0.5px solid #e7e5e4':'none'}}>
+          {sidebarOpen? <div style={{fontSize:'11px',fontWeight:700,color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em'}}>Search &amp; select</div>:null}
+          <div onClick={()=>setSidebarOpen(o=>!o)} style={{cursor:'pointer',fontSize:'12px',color:'#57534e',padding:'2px 4px'}} title={sidebarOpen?'Collapse':'Expand'}>{sidebarOpen?'→':'←'}</div>
+        </div>
+        {sidebarOpen? (
+          <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'10px'}}>
+            <div style={{display:'flex',gap:'2px',background:'#f5f5f4',borderRadius:'7px',padding:'3px'}}>
+              {[['cities','Cities'],['products','Products/Places']].map(([k,l])=>(
+                <div key={k} onClick={()=>setSidebarTab(k)} style={{flex:1,textAlign:'center',padding:'5px 4px',fontSize:'11px',fontWeight:600,cursor:'pointer',borderRadius:'5px',background:sidebarTab===k?'#1c1917':'transparent',color:sidebarTab===k?'#fff':'#57534e'}}>{l}</div>
+              ))}
+            </div>
+            <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)}
+              placeholder={sidebarTab==='cities'?'Search cities…':'Search products…'}
+              style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 9px',fontSize:'12px'}}/>
+            <div style={{display:'flex',flexDirection:'column',gap:'2px',maxHeight:'560px',overflowY:'auto'}}>
+              {sidebarSelectedItems.length? (
+                <>
+                  <div style={{fontSize:'10px',fontWeight:700,color:'#27500A',textTransform:'uppercase',letterSpacing:'.04em',padding:'4px 6px 2px'}}>Selected ({sidebarSelectedItems.length})</div>
+                  {sidebarSelectedItems.map(x=>(
+                    <label key={x.label} style={{display:'flex',alignItems:'center',gap:'7px',padding:'4px 6px',borderRadius:'5px',cursor:'pointer',fontSize:'11px',background:'#EAF3DE'}}>
+                      <input type="checkbox" checked={true} onChange={()=>sidebarToggle(x.label)} style={{margin:0,cursor:'pointer'}}/>
+                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#27500A',fontWeight:600}} title={x.label}>{x.label}</span>
+                      <span style={{fontSize:'10px',color:'#27500A'}}>({x.v})</span>
+                    </label>
+                  ))}
+                  <div style={{height:'1px',background:'#e7e5e4',margin:'4px 2px'}}/>
+                </>
+              ):null}
+              {sidebarRestItems.map(x=>(
+                <label key={x.label} style={{display:'flex',alignItems:'center',gap:'7px',padding:'4px 6px',borderRadius:'5px',cursor:'pointer',fontSize:'11px',background:'transparent'}}>
+                  <input type="checkbox" checked={false} onChange={()=>sidebarToggle(x.label)} style={{margin:0,cursor:'pointer'}}/>
+                  <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#1c1917',fontWeight:400}} title={x.label}>{x.label}</span>
+                  <span style={{fontSize:'10px',color:'#a8a29e'}}>({x.v})</span>
+                </label>
+              ))}
+              {sidebarSelectedItems.length===0 && sidebarRestItems.length===0? <div style={{fontSize:'11px',color:'#a8a29e',padding:'6px'}}>No matches</div>:null}
+            </div>
+          </div>
+        ):null}
+      </div>
+    </div>
+
+    </div>
+  );
+}
+
+// ---- chip styling (returns a style object) ----
+function chip(kind, opts){
+  opts = opts || {};
+  const base = {display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'99px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'};
+  const map = {
+    prod:  {background:'#E6F1FB',color:'#0C447C',border:'0.5px solid #B5D4F4'},
+    board: {background:'#FAEEDA',color:'#633806',border:'0.5px solid #FAC775'},
+    theme: {background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97'},
+    flag:  {background:'#FBE9E7',color:'#8C2F1E',border:'0.5px dashed #E08A74'}
+  };
+  const o = Object.assign({}, base, map[kind]||map.prod);
+  if (opts.cursor) o.cursor = opts.cursor;
+  if (opts.faded)  o.opacity = 0.55;
+  if (opts.small)  { o.fontSize='10px'; o.padding='1px 7px'; }
+  return o;
+}
+
+// ---- small UI atoms ----
+const Card = ({children, style}) => <div style={Object.assign({background:'#f5f5f4',borderRadius:'6px',padding:'9px 12px'}, style)}>{children}</div>;
+const Label = ({children}) => <div style={{fontSize:'10px',color:'#57534e',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:'3px'}}>{children}</div>;
+const Bar = ({pct, color}) => <div style={{flex:'1 1 auto',minWidth:0,width:'100%',height:'6px',background:'#eee',borderRadius:'3px',overflow:'hidden'}}><div style={{height:'100%',borderRadius:'3px',background:color||'#378ADD',width:(pct||0)+'%',transition:'width .3s'}}/></div>;
+
+// ════════════════════════════════════════════════════════════
+// Consumer Analysis — state-overlap market fit, computed only from
+// real scraped tours in window.MARKET_DATA (no hardcoded affinity numbers).
+// ════════════════════════════════════════════════════════════
+
+const CA_MARKETS = ['India', 'Singapore', 'UK', 'Australia', 'New Zealand'];
+const CA_FLAGS = {India:'🇮🇳', Singapore:'🇸🇬', UK:'🇬🇧', Australia:'🇦🇺', 'New Zealand':'🇳🇿'};
+
+// One market's real historical state distribution: % of that market's tours
+// (deduped by name+source) that touch each state, plus the tour count (n)
+// so low-confidence markets read differently from high-confidence ones.
+function buildMarketStateProfiles(){
+  const allTours = window.MARKET_DATA || [];
+  const profiles = {};
+  CA_MARKETS.forEach(market=>{
+    const tours = allTours.filter(t=>t.market===market);
+    const n = tours.length;
+    const stateTourCounts = {};
+    tours.forEach(t=>{
+      const states = new Set(t.states && t.states.length ? t.states : (t.state ? [t.state] : []));
+      states.forEach(s=>{ stateTourCounts[s] = (stateTourCounts[s]||0) + 1; });
+    });
+    const pct = {};
+    Object.entries(stateTourCounts).forEach(([s,c])=>{ pct[s] = c / (n || 1); });
+    profiles[market] = {n, pct};
+  });
+  return profiles;
+}
+
+// The Builder session is single-state (every day belongs to the currently
+// selected stateKey — see App()'s `cur = catalog[stateKey]`).
+function itineraryHasContent(days){
+  return (days||[]).some(d => (d.location && d.location.trim()) || (d.products && d.products.length));
+}
+
+// Fit score per market = % of that market's own real tours that visit the
+// currently selected state. e.g. if 8% of India tours visit WA, and WA is
+// the selected state, India's fit score is 8%.
+function computeMarketFitScores(days, stateKey){
+  const totalDaysWithLocation = (days||[]).filter(d =>
+    (d.location && d.location.trim()) || (d.products && d.products.length)
+  ).length;
+  const hasContent = !!stateKey && totalDaysWithLocation > 0;
+  const profiles = buildMarketStateProfiles();
+  const statesUsed = hasContent ? [stateKey] : [];
+  const scores = CA_MARKETS.map(market=>{
+    const profile = profiles[market];
+    const raw = hasContent ? (profile.pct[stateKey] || 0) : 0;
+    const score = Math.min(100, Math.round(raw * 100));
+    const label = score >= 60 ? 'Strong fit' : score >= 35 ? 'Moderate fit' : 'Low fit';
+    const color = score >= 60 ? '#1D9E75' : score >= 35 ? '#D97706' : '#78716C';
+    return {market, score, label, color, n: profile.n, statePct: profile.pct};
+  });
+  return {scores, statesUsed, totalDaysWithLocation};
+}
+
+// Real operators per market, Competitor-only (Board/tourism-board sources
+// have no sales channel to promote an itinerary through).
+function buildOperatorsByMarket(){
+  const allTours = window.MARKET_DATA || [];
+  const byMarket = {};
+  CA_MARKETS.forEach(market=>{
+    const names = new Set();
+    allTours.forEach(t=>{
+      if (t.market===market && t.source_type==='Competitor') names.add(t.source);
+    });
+    byMarket[market] = [...names].sort();
+  });
+  return byMarket;
+}
+
+function caScoreQuartileLabel(pct){
+  // pct is a 0..1 share of that market's tours touching the state.
+  if (pct >= 0.5) return {label:'High', color:'#1D9E75'};
+  if (pct >= 0.2) return {label:'Medium', color:'#D97706'};
+  if (pct > 0) return {label:'Low', color:'#78716C'};
+  return {label:'None', color:'#cbc9c6'};
+}
+
+// Coverage-table label — distinct thresholds from caScoreQuartileLabel, used only
+// by the "Current market coverage" facts table (Historical fit's replacement).
+function caCoverageLabel(pct){
+  // pct is a 0..1 share of that market's tours touching the state.
+  if (pct <= 0) return {label:'None', color:'#a8a29e'};
+  if (pct <= 0.05) return {label:'Rare', color:'#a8a29e'};
+  if (pct <= 0.20) return {label:'Some', color:'#D97706'};
+  return {label:'Common', color:'#1D9E75'};
+}
+
+// Market summary for the AI prediction request: total tours, state visit
+// counts, and avg tour duration per market — all derived from window.MARKET_DATA.
+function buildAIMarketSummary(){
+  const allTours = window.MARKET_DATA || [];
+  const summary = {};
+  CA_MARKETS.forEach(market=>{
+    const tours = allTours.filter(t=>t.market===market);
+    const stateVisits = {};
+    let daySum = 0, dayCount = 0;
+    tours.forEach(t=>{
+      const states = new Set(t.states && t.states.length ? t.states : (t.state ? [t.state] : []));
+      states.forEach(s=>{ stateVisits[s] = (stateVisits[s]||0) + 1; });
+      if (t.total_days){ daySum += t.total_days; dayCount++; }
+    });
+    summary[market] = {
+      totalTours: tours.length,
+      stateVisits,
+      avgDays: dayCount ? Math.round((daySum/dayCount)*10)/10 : 0,
+    };
+  });
+  return summary;
+}
+
+// Board (tourism board) promotion data for the AI prediction request: per state,
+// how many board tours visit it and the 5 most-promoted products in those tours —
+// used to flag first-mover opportunities where boards push hard but competitors don't sell yet.
+function buildBoardDataSummary(){
+  const allTours = window.MARKET_DATA || [];
+  const boardTours = allTours.filter(t=>t.source_type==='Board');
+  const byState = {};
+  boardTours.forEach(t=>{
+    const states = new Set(t.states && t.states.length ? t.states : (t.state ? [t.state] : []));
+    states.forEach(s=>{
+      if (!byState[s]) byState[s] = {tours: 0, productCount: new Map()};
+      byState[s].tours += 1;
+      (t.products||[]).forEach(p=>{
+        byState[s].productCount.set(p, (byState[s].productCount.get(p)||0)+1);
+      });
+    });
+  });
+  const summary = {};
+  Object.entries(byState).forEach(([state, info])=>{
+    const topProducts = [...info.productCount.entries()]
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,5)
+      .map(([p])=>p);
+    summary[state] = {boardTours: info.tours, topProducts};
+  });
+  return summary;
+}
+
+// Product name -> {state -> tour count} across all of window.MARKET_DATA, built once
+// per call. Used to infer which state a product most likely belongs to, for itineraries
+// that span multiple Australian states (the Builder session itself is single-state,
+// but a PM can still add products the catalog associates with a different state).
+function buildProductStateCounts(){
+  const allTours = window.MARKET_DATA || [];
+  const counts = {};
+  allTours.forEach(t=>{
+    const states = t.states && t.states.length ? t.states : (t.state ? [t.state] : []);
+    (t.products||[]).forEach(p=>{
+      if (!counts[p]) counts[p] = {};
+      states.forEach(s=>{ counts[p][s] = (counts[p][s]||0) + 1; });
+    });
+  });
+  return counts;
+}
+
+// Resolve a single product's most likely state: most common state across
+// window.MARKET_DATA tours containing it; ties and unknown products fall back
+// to the Builder's current stateKey.
+function resolveProductState(product, productStateCounts, fallbackState){
+  const counts = productStateCounts[product];
+  if (!counts) return {state: fallbackState, fellBack: true};
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return {state: fallbackState, fellBack: true};
+  const topCount = entries[0][1];
+  const tied = entries.filter(([,c])=>c===topCount);
+  if (tied.length > 1){
+    const tieMatch = tied.find(([s])=>s===fallbackState);
+    return {state: tieMatch ? tieMatch[0] : tied[0][0], fellBack: !tieMatch};
+  }
+  return {state: entries[0][0], fellBack: false};
+}
+
+// Groups the itinerary's days/products into per-state regions for the AI prediction
+// request. Single-state itineraries still return a one-item regions array (Step 2).
+// Logs the resolved payload (and which products fell back to stateKey) for QA.
+function buildRegionsFromItinerary(days, stateKey){
+  const productStateCounts = buildProductStateCounts();
+  const fallbacks = [];
+
+  const dayRegions = (days||[]).map(d=>{
+    const products = d.products || [];
+    if (!products.length && !((d.location||'').trim())) return null;
+    const stateVotes = {};
+    products.forEach(p=>{
+      const {state, fellBack} = resolveProductState(p, productStateCounts, stateKey);
+      stateVotes[state] = (stateVotes[state]||0) + 1;
+      if (fellBack) fallbacks.push(p);
+    });
+    const dayState = Object.keys(stateVotes).length
+      ? Object.entries(stateVotes).sort((a,b)=>b[1]-a[1])[0][0]
+      : stateKey;
+    return {state: dayState, products};
+  }).filter(Boolean);
+
+  const byState = {};
+  dayRegions.forEach(({state, products})=>{
+    if (!byState[state]) byState[state] = {days: 0, products: []};
+    byState[state].days += 1;
+    products.forEach(p=>{ if (!byState[state].products.includes(p)) byState[state].products.push(p); });
+  });
+
+  const regions = Object.entries(byState).map(([state, info])=>({
+    state, days: info.days, products: info.products,
+  }));
+  const total_days = regions.reduce((sum,r)=>sum+r.days, 0);
+
+  console.log('[AI prediction] regions payload:', {regions, total_days});
+  if (fallbacks.length){
+    console.log('[AI prediction] products with unknown state, fell back to', stateKey + ':', [...new Set(fallbacks)]);
+  }
+
+  return {regions, total_days};
+}
+
+const AI_PREDICTION_STORAGE_KEY = 'mi_ai_prediction';
+
+// Sorted, comma-separated snapshot of every product currently in the itinerary —
+// used to detect "has this itinerary changed enough to warrant re-analysis".
+function productFingerprint(products){
+  return [...(products||[])].sort().join(',');
+}
+
+// Count of products that differ between two fingerprints (added or removed),
+// used for the "2 or more products changed" re-analysis threshold.
+function fingerprintDiffCount(fpA, fpB){
+  const a = new Set((fpA||'').split(',').filter(Boolean));
+  const b = new Set((fpB||'').split(',').filter(Boolean));
+  let diff = 0;
+  a.forEach(x=>{ if(!b.has(x)) diff++; });
+  b.forEach(x=>{ if(!a.has(x)) diff++; });
+  return diff;
+}
+
+function ConsumerAnalysisView({days, stateKey}){
+  const {scores, statesUsed, totalDaysWithLocation} = useMemo(()=>computeMarketFitScores(days, stateKey), [days, stateKey]);
+  const operatorsByMarket = useMemo(()=>buildOperatorsByMarket(), []);
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult]   = useState(null);   // {predictions, summary}
+  const [aiError, setAiError]     = useState(false);
+  const [aiErrorMsg, setAiErrorMsg] = useState('');   // specific red error text (timeout/abort), separate from the generic Ollama-down message
+  const [aiProgress, setAiProgress] = useState(0);    // 0-100, fills over ~45s while waiting on the proxy/Ollama
+  const aiProgressTimer = useRef(null);
+  // Persists across clicks (not reset on re-render) so a second click can abort
+  // whatever request the first click started, and the 60s watchdog can abort itself.
+  const aiController = useRef(null);
+
+  const [savedPrediction, setSavedPrediction] = useState(null); // {fingerprint, predictions, summary, timestamp}
+
+  // Debug panel (Consumer Analysis AI prediction troubleshooting) — status text,
+  // live elapsed-time counter, raw response body, and HTTP status code.
+  const [debugVisible, setDebugVisible] = useState(true);
+  const [debugStatus, setDebugStatus] = useState('Idle');
+  const [debugElapsed, setDebugElapsed] = useState(0);
+  const [debugRaw, setDebugRaw] = useState('');
+  const [debugHttpStatus, setDebugHttpStatus] = useState(null);
+  const debugTimer = useRef(null);
+
+  // Load any saved prediction from localStorage once on mount — persists across
+  // page refresh and tab switching without re-calling the API.
+  useEffect(()=>{
+    try{
+      const raw = localStorage.getItem(AI_PREDICTION_STORAGE_KEY);
+      if (raw) setSavedPrediction(JSON.parse(raw));
+    } catch(e){}
+  }, []);
+
+  const hasEnoughData = totalDaysWithLocation > 0;
+  const sortedScores = [...scores].sort((a,b)=>b.score-a.score);
+  const promoteMarkets = sortedScores.filter(s=>s.score >= 35);
+
+  const allProducts = (days||[]).flatMap(d=>d.products||[]);
+  const daysWithLocation = (days||[]).filter(d=>(d.location&&d.location.trim())||(d.products&&d.products.length)).length;
+  const currentFingerprint = productFingerprint(allProducts);
+
+  // States detected across the itinerary's products, for the subtitle/warning —
+  // same resolution logic as buildRegionsFromItinerary but without the console logging.
+  const detectedStates = useMemo(()=>{
+    const productStateCounts = buildProductStateCounts();
+    const set = new Set();
+    allProducts.forEach(p=>{ set.add(resolveProductState(p, productStateCounts, stateKey).state); });
+    if (!set.size && stateKey) set.add(stateKey);
+    return [...set];
+  }, [currentFingerprint, stateKey]);
+  const isMultiState = detectedStates.length > 1;
+
+  const meetsMinimums = allProducts.length >= 3 && daysWithLocation >= 2;
+  const changedSinceSaved = savedPrediction
+    ? fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint) >= 2
+    : true; // no saved prediction yet — nothing to compare against, so allow analysis
+  const canAnalyse = meetsMinimums && changedSinceSaved;
+
+  let analyseTooltip;
+  if (!meetsMinimums) analyseTooltip = 'Add at least 3 products and 2 days to analyse';
+  else if (!changedSinceSaved) analyseTooltip = savedPrediction ? 'No significant changes since last analysis' : undefined;
+  if (meetsMinimums && !changedSinceSaved && savedPrediction){
+    const diff = fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint);
+    analyseTooltip = diff > 0 ? `Add ${2-diff} more product${2-diff===1?'':'s'} since last analysis to re-analyse` : 'No significant changes since last analysis';
+  }
+
+  const showChangedBanner = !!savedPrediction && fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint) >= 2;
+
+  async function runAiPrediction(){
+    // A previous request is still in flight — abort it before starting a fresh one,
+    // so a second click can never pile up on top of a hung first click.
+    if (aiController.current) aiController.current.abort();
+    const controller = new AbortController();
+    aiController.current = controller;
+
+    setAiLoading(true); setAiError(false); setAiErrorMsg(''); setAiResult(null); setAiProgress(0);
+    setDebugStatus('Sending request to proxy...'); setDebugElapsed(0); setDebugRaw(''); setDebugHttpStatus(null);
+    const startedAt = Date.now();
+    aiProgressTimer.current = setInterval(()=>{
+      const pct = Math.min(99, Math.round(((Date.now()-startedAt)/45000)*100));
+      setAiProgress(pct);
+    }, 300);
+    debugTimer.current = setInterval(()=>{
+      setDebugElapsed(Math.floor((Date.now()-startedAt)/1000));
+    }, 250);
+
+    // 90s frontend watchdog — if the request hasn't resolved by then, abort it
+    // so the button can never be stuck on "Analysing..." forever.
+    const watchdog = setTimeout(()=>{ controller.abort(); }, 90000);
+
+    try{
+      const {regions, total_days} = buildRegionsFromItinerary(days, stateKey);
+      const itinerary = {regions, total_days};
+      const marketData = buildAIMarketSummary();
+      const boardData = buildBoardDataSummary();
+      setDebugStatus('Request sent — waiting for response...');
+      const r = await fetch('api/predict', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({itinerary, marketData, boardData}),
+        signal: controller.signal,
+      });
+      setDebugHttpStatus(r.status);
+      setDebugStatus('Response received — parsing...');
+      const rawText = await r.clone().text();
+      setDebugRaw(rawText ? rawText : 'Empty response');
+      const data = JSON.parse(rawText || '{}');
+      if (data.error || !data.predictions){ setAiError(true); setDebugStatus('Error: ' + (data.error || 'no predictions returned')); }
+      else {
+        setAiResult(data);
+        setDebugStatus('Done');
+        const toSave = {
+          fingerprint: currentFingerprint,
+          products: allProducts,
+          predictions: data.predictions,
+          summary: data.summary || '',
+          timestamp: new Date().toISOString(),
+        };
+        try{ localStorage.setItem(AI_PREDICTION_STORAGE_KEY, JSON.stringify(toSave)); } catch(e){}
+        setSavedPrediction(toSave);
+      }
+    } catch(e){
+      setDebugRaw(e.message || String(e));
+      if (e.name === 'AbortError'){ setAiErrorMsg('Analysis timed out — please try again.'); setDebugStatus('Error: request timed out / aborted'); }
+      else { setAiError(true); setDebugStatus('Error: ' + (e.message || String(e))); }
+    }
+    clearTimeout(watchdog);
+    if (aiController.current === controller) aiController.current = null;
+    clearInterval(aiProgressTimer.current);
+    clearInterval(debugTimer.current);
+    setDebugElapsed(Math.floor((Date.now()-startedAt)/1000));
+    setAiProgress(100);
+    setAiLoading(false);
+  }
+
+  function clearSavedPrediction(){
+    try{ localStorage.removeItem(AI_PREDICTION_STORAGE_KEY); } catch(e){}
+    setSavedPrediction(null);
+    setAiResult(null);
+    setAiError(false);
+    setAiErrorMsg('');
+  }
+
+  // What to actually render: a fresh result from this session takes priority,
+  // otherwise fall back to whatever was persisted in localStorage.
+  const displayResult = aiResult || (savedPrediction ? {predictions: savedPrediction.predictions, summary: savedPrediction.summary} : null);
+
+  // Day counts per state, for the coverage-summary table — the Builder
+  // session is single-state, so every day-with-content counts against stateKey.
+  const dayCountByState = {};
+  if (stateKey) dayCountByState[stateKey] = totalDaysWithLocation;
+
+  const cardHd = {fontSize:'12px',fontWeight:700,color:'#1c1917',marginBottom:'8px'};
+
+  if (!hasEnoughData){
+    return (
+      <div style={{padding:'40px 20px',textAlign:'center',color:'#a8a29e',fontSize:'13px'}}>
+        Add locations to your itinerary to see consumer analysis
+      </div>
+    );
+  }
+
+  return (
+    <div style={{padding:'18px 20px',display:'flex',flexDirection:'column',gap:'20px',maxWidth:'1100px'}}>
+
+      {/* ── Section 1: AI prediction (moved to top) ── */}
+      <div>
+        <div style={cardHd}>AI prediction — who should buy this itinerary?</div>
+        <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'-6px',marginBottom:'2px'}}>Forward-looking · Based on market gaps and tourism trends</div>
+        {detectedStates.length ? (
+          <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'2px'}}>Scoring across {detectedStates.join(' · ')}</div>
+        ) : null}
+        {isMultiState ? (
+          <div style={{fontSize:'10px',color:'#B45309',marginBottom:'8px'}}>Multi-state itineraries may have lower prediction accuracy. Per-day state selection coming soon.</div>
+        ) : (
+          <div style={{marginBottom:'8px'}}/>
+        )}
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'14px'}}>
+          {showChangedBanner ? (
+            <div style={{background:'#FEF3E2',border:'0.5px solid #F3D38A',borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',fontSize:'12px',color:'#7A4A00'}}>
+              Your itinerary has changed significantly. Re-analyse for updated predictions.
+            </div>
+          ) : null}
+
+          <button
+            onClick={runAiPrediction}
+            disabled={!canAnalyse || aiLoading}
+            title={aiLoading ? undefined : analyseTooltip}
+            style={{...primaryBtn, width:'100%', padding:'10px 14px', fontSize:'13px',
+              opacity:(!canAnalyse || aiLoading)?0.5:1, cursor:(!canAnalyse || aiLoading)?'not-allowed':'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+            {aiLoading ? (<><span className="ca-spinner"/>Analysing... (30-60 seconds)</>) : 'Analyse this itinerary'}
+          </button>
+
+          <div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}>
+            <span onClick={()=>setDebugVisible(v=>!v)} style={{fontSize:'10px',color:'#a8a29e',cursor:'pointer',textDecoration:'underline'}}>{debugVisible?'Hide debug':'Show debug'}</span>
+          </div>
+          {debugVisible ? (
+            <div style={{background:'#FFFBE6',border:'0.5px solid #F0E4A0',borderRadius:'6px',padding:'8px 10px',marginTop:'4px',fontFamily:'Consolas,Menlo,monospace',fontSize:'10px',color:'#57534e',lineHeight:1.6}}>
+              <div><b>Status:</b> {debugStatus}</div>
+              <div><b>Elapsed:</b> {debugElapsed}s</div>
+              <div><b>HTTP status:</b> {debugHttpStatus!==null ? 'HTTP '+debugHttpStatus : '—'}</div>
+              <div style={{marginTop:'4px'}}><b>Raw response:</b></div>
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'4px',padding:'6px',marginTop:'2px',maxHeight:'120px',overflowY:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
+                {debugRaw || 'Empty response'}
+              </div>
+            </div>
+          ) : null}
+
+          <div style={{fontSize:'10px',color:'#a8a29e',textAlign:'center',marginTop:'6px'}}>Powered by AI · Via company proxy</div>
+
+          {aiLoading ? (
+            <div style={{marginTop:'10px',height:'5px',borderRadius:'3px',background:'#f0efed',overflow:'hidden'}}>
+              <div style={{width:aiProgress+'%',height:'100%',background:GREEN,transition:'width .3s linear'}}/>
+            </div>
+          ) : null}
+
+          {aiError ? (
+            <div style={{fontSize:'12px',color:'#a8a29e',marginTop:'12px',textAlign:'center'}}>Ollama is not running. Start Ollama to enable AI predictions.</div>
+          ) : null}
+
+          {aiErrorMsg ? (
+            <div style={{fontSize:'12px',color:'#DC2626',marginTop:'12px',textAlign:'center',fontWeight:600}}>{aiErrorMsg}</div>
+          ) : null}
+
+          {displayResult ? (
+            <div style={{marginTop:'16px'}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
+                {displayResult.predictions.map(p=>{
+                  const color = p.score>=60?'#1D9E75':p.score>=35?'#D97706':'#78716C';
+                  const pillBg = p.score>=60?'#E3F5EC':p.score>=35?'#FCF0DC':'#EEECEA';
+                  return (
+                    <div key={p.market} style={{background:'#fafaf9',border:'0.5px solid #e7e5e4',borderLeft:`4px solid ${color}`,borderRadius:'10px',padding:'20px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'7px',marginBottom:'10px'}}>
+                        <span style={{fontSize:'19px'}}>{CA_FLAGS[p.market]}</span>
+                        <span style={{fontSize:'15px',fontWeight:700,color:'#1c1917'}}>{p.market}</span>
+                      </div>
+                      <div style={{fontSize:'2.1rem',fontWeight:700,color,lineHeight:1}}>{p.score}%</div>
+                      <div style={{marginTop:'10px'}}>
+                        <span style={{display:'inline-block',fontSize:'11px',fontWeight:700,color,background:pillBg,borderRadius:'999px',padding:'3px 10px'}}>{p.label}</span>
+                      </div>
+                      <div style={{fontSize:'0.9rem',lineHeight:1.5,color:'#78716C',marginTop:'10px'}}>{p.reason}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {displayResult.summary ? (
+                <div style={{marginTop:'14px'}}>
+                  <div style={{fontSize:'10px',fontWeight:700,color:'#78716C',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'6px'}}>AI Summary</div>
+                  <div style={{background:'#f5f5f4',borderRadius:'10px',padding:'14px 16px',fontSize:'0.95rem',lineHeight:1.6,color:'#44403c'}}>{displayResult.summary}</div>
+                </div>
+              ) : null}
+              <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'8px'}}>AI prediction based on market data + tourism trends</div>
+
+              {savedPrediction ? (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:'10px',paddingTop:'10px',borderTop:'0.5px solid #f0efed'}}>
+                  <div style={{fontSize:'10px',color:'#a8a29e'}}>
+                    Last analysed: {new Date(savedPrediction.timestamp).toLocaleString()} · {(savedPrediction.fingerprint?savedPrediction.fingerprint.split(',').filter(Boolean).length:0)} products
+                  </div>
+                  <div onClick={clearSavedPrediction} style={{fontSize:'10px',color:'#8C2F1E',cursor:'pointer',fontWeight:600}}>Clear</div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* ── Section 2: Current market coverage (was "Market fit" score cards) ── */}
+      <div>
+        <div style={cardHd}>Current market coverage — who goes here today?</div>
+        <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'-6px',marginBottom:'8px'}}>Based on real competitor data · Historical only</div>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',padding:'8px 14px',background:'#f5f5f4',fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}}>
+            <div>Market</div><div>Coverage</div>
+          </div>
+          {sortedScores.map(s=>{
+            const pct = s.statePct[stateKey] || 0;
+            const tourCount = Math.round(pct * s.n);
+            const cov = caCoverageLabel(pct);
+            return (
+              <div key={s.market} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',padding:'9px 14px',fontSize:'12px',borderTop:'0.5px solid #f0efed',alignItems:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                  <span style={{fontSize:'14px'}}>{CA_FLAGS[s.market]}</span>
+                  <span style={{fontWeight:600,color:'#1c1917'}}>{s.market}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                  <span style={{color:'#57534e'}}>{tourCount} of {s.n} {s.market} tour{s.n===1?'':'s'} visit {stateKey}</span>
+                  <span style={{fontSize:'10px',fontWeight:700,color:cov.color}}>{cov.label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Section B: Promote through ── */}
+      <div>
+        <div style={cardHd}>Promote through</div>
+        {promoteMarkets.length===0 ? (
+          <div style={{fontSize:'12px',color:'#a8a29e'}}>Build more of your itinerary to see operator recommendations</div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+            {promoteMarkets.map(s=>{
+              const ops = operatorsByMarket[s.market] || [];
+              return (
+                <div key={s.market} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'8px'}}>
+                    <span style={{fontSize:'14px'}}>{CA_FLAGS[s.market]}</span>
+                    <span style={{fontSize:'12px',fontWeight:700,color:'#1c1917'}}>{s.market}</span>
+                    <span style={{fontSize:'10px',fontWeight:600,color:s.color}}>{s.score}% fit</span>
+                  </div>
+                  {ops.length ? (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                      {ops.map(o=><span key={o} style={chip('prod',{small:true})}>{sourceName(o)}</span>)}
+                    </div>
+                  ) : (
+                    <div style={{fontSize:'11px',color:'#a8a29e'}}>No competitor operators recorded for this market yet</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Section C: State coverage summary ── */}
+      <div>
+        <div style={cardHd}>State coverage summary</div>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'0.7fr 0.9fr repeat(5,1fr)',gap:'8px',padding:'8px 14px',background:'#f5f5f4',fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}}>
+            <div>State</div><div>Days planned</div>
+            {sortedScores.map(sc=><div key={sc.market}>{CA_FLAGS[sc.market]} {sc.market}</div>)}
+          </div>
+          {statesUsed.map(s=>(
+            <div key={s} style={{display:'grid',gridTemplateColumns:'0.7fr 0.9fr repeat(5,1fr)',gap:'8px',padding:'8px 14px',fontSize:'11px',borderTop:'0.5px solid #f0efed',alignItems:'center'}}>
+              <div><span style={stateChipStyle(s,true)}>{s}</span></div>
+              <div style={{color:'#57534e'}}>{dayCountByState[s]||0}</div>
+              {sortedScores.map(sc=>{
+                const pct = sc.statePct[s] || 0;
+                const tourCount = Math.round(pct * sc.n);
+                const q = caScoreQuartileLabel(pct);
+                return <div key={sc.market} style={{color:q.color,fontWeight:600}}>{tourCount} · {q.label}</div>;
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function App(){
+  const D = window.DATA_MODULE;
+  const [err, setErr] = useState('');
+  const [corrections, setCorrections] = useState(()=>{ try { return D.loadCorrections()||{}; } catch(e){ return {}; } });
+  const catalog = useMemo(()=>{
+    try { return D.resolveCatalog(corrections); }
+    catch(e){ return D.CATALOG; }
+  }, [corrections]);
+  const THEMES = D.THEMES || [];
+  // global template list (every scraped itinerary, cross-state), corrections applied per-day-state
+  const allTemplatesGlobal = useMemo(()=>{
+    try { return D.resolveTemplates ? D.resolveTemplates(corrections) : (D.TEMPLATES||[]); }
+    catch(e){ return D.TEMPLATES||[]; }
+  }, [corrections]);
+  function prodInfo(state, name){ const c=catalog[state]; return (c&&c.products) ? c.products[name] : null; }
+  function cityOfIn(state, name){ const c=catalog[state]; return (c&&c.cities&&c.cities[name]) || (c&&c.name) || state; }
+
+  const stateKeys = Object.keys(catalog);
+  const [view, setView]       = useState('builder');
+  const [stateKey, setStateKey] = useState(stateKeys[0] || 'WA');
+  const cur = catalog[stateKey] || {products:{},templates:[],allRows:[],cities:{},name:stateKey,abbr:stateKey,seed:{tourName:'',duration:5,days:[]}};
+
+  const [tourName, setTourName] = useState('');
+  const [tourUrl, setTourUrl]   = useState('');
+  const [tourSource, setTourSource] = useState('');
+  const [duration, setDuration] = useState(5);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+  const [days, setDays]         = useState([]);
+  const [activeDay, setActiveDay] = useState(0);
+  const [builderSubTab, setBuilderSubTab] = useState('build'); // 'build' | 'consumer'
+
+  const [suggestTab, setSuggestTab] = useState('popular');
+  const [suggestSearch, setSuggestSearch] = useState('');
+  const [sourcePopup, setSourcePopup] = useState(null); // product name currently showing its source popup, or null
+  const [themeInputs, setThemeInputs] = useState({});
+  const [draftBanner, setDraftBanner] = useState(null); // {market,state,days} while a generated draft is loaded, or null
+
+  // ---- templates tab filters (operate on the global cross-state template list) ----
+  const [tplSourceFilter, setTplSourceFilter] = useState('all');      // all | Competitor | Board
+  const [tplStateFilter, setTplStateFilter]   = useState([]);         // multi-select, OR-combined
+  const [tplLocationFilter, setTplLocationFilter] = useState('');     // market / sourceLocation, single
+  const [tplThemeFilter, setTplThemeFilter]   = useState([]);         // multi-select, AND-combined
+  const [tplSourceNameFilter, setTplSourceNameFilter] = useState([]); // multi-select, OR-combined
+  const [tplSearch, setTplSearch]             = useState('');
+  const [tplExactMatch, setTplExactMatch]     = useState(null); // {name, source} — set when arriving from an exact-row click (e.g. Market Intelligence table)
+  const [tplRouteFilter, setTplRouteFilter]   = useState([]);         // route cities/places, AND-combined ("must visit all")
+  const [tplDurMin, setTplDurMin] = useState(1);
+  const [tplDurMax, setTplDurMax] = useState(30);
+  const [tplSortBy, setTplSortBy] = useState('pop');                  // pop | dur-d | dur-a | board
+  const [routeSearch, setRouteSearch] = useState('');
+  const [previewTpl, setPreviewTpl]   = useState(null);
+  const [confirmTpl, setConfirmTpl]   = useState(null);
+
+  const allTpls = allTemplatesGlobal;
+
+  function tplThemesOf(t){
+    const s = new Set(t.themes||[]);
+    (t.days||[]).forEach(d=>{
+      (d.themes||[]).forEach(x=>s.add(x));
+      (d.places||[]).forEach(p=>{ const info=prodInfo(d.state,p); if(info)(info.t||[]).forEach(x=>s.add(x)); });
+    });
+    return s;
+  }
+
+  // derived filter options — must live at App level (no hooks inside render fns)
+  const routePlaceOptions = useMemo(()=>{
+    const s=new Set();
+    allTpls.forEach(t=>(t.days||[]).forEach(d=>{ if(d.city) s.add(d.city); (d.places||[]).forEach(p=>s.add(p)); }));
+    return [...s].sort();
+  }, [allTpls]);
+  const routeSearchOptions = useMemo(()=>{
+    if(!routeSearch.trim()) return routePlaceOptions.slice(0,40);
+    const q = routeSearch.toLowerCase();
+    return routePlaceOptions.filter(c => c.toLowerCase().includes(q)).slice(0,40);
+  }, [routeSearch, routePlaceOptions]);
+  const tplThemeOptions = useMemo(()=>{
+    const s=new Set(); allTpls.forEach(t=>tplThemesOf(t).forEach(x=>s.add(x)));
+    return THEMES.filter(t=>s.has(t));
+  }, [allTpls]);
+  const tplSourceOptions = useMemo(()=>{
+    const s=new Set(); allTpls.forEach(t=>{ if(t.source) s.add(t.source); }); return [...s].sort();
+  }, [allTpls]);
+  const tplLocationOptions = useMemo(()=>{
+    const s=new Set(); allTpls.forEach(t=>{ if(t.sourceLocation) s.add(t.sourceLocation); }); return [...s].sort();
+  }, [allTpls]);
+
+  const tplsFiltered = useMemo(()=>{
+    if(tplExactMatch){
+      return allTpls.filter(t=>t.name===tplExactMatch.name && t.source===tplExactMatch.source);
+    }
+    const q=(tplSearch||'').toLowerCase().trim();
+    let list = allTpls.filter(t=>{
+      if(tplSourceFilter==='Competitor'&&t.type!=='Competitor') return false;
+      if(tplSourceFilter==='Board'&&t.type!=='Board') return false;
+      if(tplLocationFilter && t.sourceLocation !== tplLocationFilter) return false;
+      if(tplSourceNameFilter.length && !tplSourceNameFilter.includes(t.source)) return false;
+      if(tplStateFilter.length && !tplStateFilter.some(s=>(t.states||[]).includes(s))) return false;
+      if(tplThemeFilter.length){
+        const allT=tplThemesOf(t);
+        if(!tplThemeFilter.every(th=>allT.has(th))) return false;
+      }
+      if(tplRouteFilter.length > 0){
+        const allPlaces = new Set();
+        (t.days||[]).forEach(d=>{ if(d.city) allPlaces.add(d.city); (d.places||[]).forEach(p=>allPlaces.add(p)); });
+        if(!tplRouteFilter.every(p=>allPlaces.has(p))) return false;
+      }
+      const dur = (t.days||[]).length;
+      if(dur < tplDurMin || dur > tplDurMax) return false;
+      if(q){ const hay=(t.name+' '+(t.source||'')+' '+(t.desc||'')).toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    });
+    const boardPctOf = (t)=>{
+      let board=0, resolved=0;
+      (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ const info=prodInfo(d.state,p); if(info){ resolved++; if(info.board) board++; } }));
+      return resolved? board/resolved : 0;
+    };
+    list = list.slice();
+    if(tplSortBy==='pop') list.sort((a,b)=>(b.pop||0)-(a.pop||0));
+    else if(tplSortBy==='dur-a') list.sort((a,b)=>(a.days||[]).length-(b.days||[]).length);
+    else if(tplSortBy==='dur-d') list.sort((a,b)=>(b.days||[]).length-(a.days||[]).length);
+    else if(tplSortBy==='board') list.sort((a,b)=>boardPctOf(b)-boardPctOf(a));
+    return list;
+  }, [allTpls, tplSourceFilter, tplStateFilter, tplThemeFilter, tplSearch, tplRouteFilter, tplLocationFilter, tplSourceNameFilter, tplDurMin, tplDurMax, tplSortBy, catalog, tplExactMatch]);
+
+  const [dataFilter, setDataFilter] = useState('all');
+  const [dataSearch, setDataSearch] = useState('');
+  const [dataPage, setDataPage]     = useState(0);
+
+  const [saved, setSaved]       = useState([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [toast, setToast]       = useState('');
+  const toastTimer = useRef(null);
+
+  // ---- helpers ----
+  const cityOf = (name) => (cur.cities && cur.cities[name]) || cur.name;
+  const blankDay = () => ({location:'',city:'',desc:'',title:'',products:[],customThemes:[],removedThemes:[]});
+
+  function seedDays(c){
+    const s = c.seed || {tourName:'',duration:5,days:[]};
+    const d = (s.days||[]).map(x => ({
+      location:x.location||'', city:(c.cities && c.cities[(x.products||[])[0]])||'',
+      desc:x.desc||'', products:[...(x.products||[])], customThemes:[], removedThemes:[]
+    }));
+    while (d.length < (s.duration||5)) d.push(blankDay());
+    return {days:d, dur:(s.duration||5), name:s.tourName||''};
+  }
+
+  // initialise / reset when state changes
+  useEffect(()=>{
+    const {days:d, dur, name} = seedDays(cur);
+    setDays(d); setDuration(dur); setTourName(name); setTourUrl(''); setActiveDay(0);
+  // eslint-disable-next-line
+  }, [stateKey]);
+
+  // re-sync corrections when tab regains focus (token editor edits reflect live)
+  useEffect(()=>{
+    const onVis = ()=>{ if (document.visibilityState==='visible'){ try{ setCorrections(D.loadCorrections()||{}); }catch(e){} } };
+    const onStore = (e)=>{ if(!e.key || e.key===D.STORAGE_KEY){ try{ setCorrections(D.loadCorrections()||{}); }catch(e){} } };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('storage', onStore);
+    return ()=>{ document.removeEventListener('visibilitychange', onVis); window.removeEventListener('storage', onStore); };
+  }, []);
+
+  function showToast(msg){ setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(''),2600); }
+
+  function dayThemesAuto(d){
+    const s = new Set();
+    (d.products||[]).forEach(p=>{ const x=cur.products[p]; if(x&&x.t) x.t.forEach(t=>s.add(t)); });
+    return THEMES.filter(t=>s.has(t));
+  }
+  function dayThemesDisplay(d){
+    const auto = dayThemesAuto(d).filter(t=>!(d.removedThemes||[]).includes(t));
+    const custom = (d.customThemes||[]).filter(t=>!auto.includes(t));
+    return [...auto, ...custom];
+  }
+
+  // ---- day actions ----
+  const setDur = (n)=>{
+    n = Math.max(2, Math.min(14, n));
+    setDays(prev=>{ const a=prev.slice(); while(a.length<n)a.push(blankDay()); while(a.length>n)a.pop(); return a; });
+    setDuration(n); setActiveDay(a=>Math.min(a,n-1));
+  };
+  const addDay = ()=>{
+    setDays(prev=>{ const a=[...prev, blankDay()]; setDuration(a.length); return a; });
+    setActiveDay(days.length);
+  };
+  const clearAll = ()=>{
+    if(!window.confirm('Are you sure? This will remove all days and products.')) return;
+    setTourName(''); setTourUrl(''); setTourSource(''); setDuration(1); setDays([blankDay()]); setActiveDay(0);
+    setDraftBanner(null);
+  };
+  const removeDay = (i)=>{
+    setDays(prev=>{
+      if (prev.length<=1) return prev;
+      const a = prev.filter((_,k)=>k!==i);
+      setDuration(a.length);
+      return a;
+    });
+    setActiveDay(a=>Math.max(0, Math.min(a, days.length-2)));
+  };
+  const reorderDay = (from, to)=>{
+    if (from===to) return;
+    setDays(prev=>{
+      const a = prev.slice();
+      const [moved] = a.splice(from,1);
+      a.splice(to,0,moved);
+      return a;
+    });
+    setActiveDay(a=> a===from? to : a>from&&a<=to? a-1 : a<from&&a>=to? a+1 : a);
+  };
+  const setLocation = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,location:val}:d));
+  const setDesc     = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,desc:val}:d));
+  const setDayTitle = (i,val)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,title:val}:d));
+  const toggleProduct = (name)=> setDays(prev=>prev.map((d,k)=>{
+    if(k!==activeDay) return d;
+    const has=d.products.includes(name);
+    return {...d, products: has? d.products.filter(p=>p!==name):[...d.products,name]};
+  }));
+  const removeProduct = (i,name)=> setDays(prev=>prev.map((d,k)=>k===i?{...d,products:d.products.filter(p=>p!==name)}:d));
+  const addCustomTheme = (i,theme)=>{ const t=(theme||'').trim(); if(!t) return; setDays(prev=>prev.map((d,k)=>{
+    if(k!==i) return d; if(dayThemesDisplay(d).includes(t)) return d; return {...d, customThemes:[...(d.customThemes||[]),t]};
+  })); };
+  const removeTheme = (i,theme)=> setDays(prev=>prev.map((d,k)=>{
+    if(k!==i) return d;
+    return {...d, customThemes:(d.customThemes||[]).filter(t=>t!==theme), removedThemes:[...new Set([...(d.removedThemes||[]),theme])]};
+  }));
+
+  // ---- templates ----
+  function loadTemplate(t){
+    // A tour can cross states; each day resolves its city name against its own
+    // day-state's catalog (not the Builder's currently-selected state).
+    const d = (t.days||[]).map(x=>({
+      location: '', city: x.title||cityOfIn(x.state, (x.places||[])[0])||'', desc:x.desc||'',
+      products:[...(x.places||[])], customThemes:[], removedThemes:[]
+    }));
+    // The Builder itself stays single-state per session — seed it with the
+    // template's primary (first-visited) state.
+    const targetState = (t.states && t.states[0]) || stateKeys[0];
+    // Always set view first, then use setTimeout so the seed-reset effect
+    // (triggered by setStateKey or initial mount) never wins over our data.
+    setView('builder');
+    setStateKey(targetState);
+    setTimeout(()=>{ setTourName(''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); setDraftBanner(null); }, 0);
+    showToast('Loaded template · '+(t.name||''));
+  }
+
+  // ---- 3b: rule-based draft generator (client-side only, no API calls) ----
+  // Builds a day-by-day skeleton from board data for a given market+state insight card:
+  // Day 1 / last day = the state's most common board arrival city (no products — PM fills these in);
+  // middle days = the missing-products list (board-promoted, not sold by this market's competitors)
+  // spread 1-2 per day, in board-frequency order, over whatever days are left.
+  function generateDraftFromInsight(market, state, enr){
+    const duration = Math.max(2, Math.round(enr.avgDur||3));
+    const arrivalCity = enr.arrivalCity || state;
+    const missing = enr.missingProductsAll && enr.missingProductsAll.length ? enr.missingProductsAll : enr.missingProducts;
+
+    const d = [];
+    d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+    const middleCount = Math.max(0, duration-2);
+    if (middleCount > 0){
+      // one or two of the highest board-frequency missing products per day — not the whole tail
+      const perDay = Math.min(2, Math.max(1, Math.ceil(Math.min(missing.length, middleCount*2) / middleCount)));
+      let idx = 0;
+      for (let i=0;i<middleCount;i++){
+        const slice = missing.slice(idx, idx+perDay);
+        idx += perDay;
+        d.push({location:'', city:arrivalCity, desc:'', title:'', products:slice, customThemes:[], removedThemes:[]});
+      }
+    }
+    if (duration > 1) d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+    while (d.length < duration) d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+
+    setView('builder');
+    setStateKey(state);
+    setTimeout(()=>{
+      setTourName(''); setTourUrl(''); setTourSource('');
+      setDuration(d.length); setDays(d); setActiveDay(0);
+      setBuilderSubTab('consumer');
+      setDraftBanner({market, state, days:d.length});
+    }, 0);
+    showToast('Draft generated from Opportunities · '+market+' · '+state);
+  }
+
+  // ---- saved itineraries (server API) ----
+  async function loadSaved(){
+    setSavedLoading(true);
+    try { const data = await (await fetch('itineraries')).json(); setSaved(Array.isArray(data)?data:[]); }
+    catch(e){ showToast('Could not load saved itineraries'); }
+    setSavedLoading(false);
+  }
+  async function saveItinerary(){
+    const ts = new Date().toISOString().replace(/\D/g,'').slice(0,14);
+    const safe = (tourName||'Untitled').replace(/[^a-zA-Z0-9]+/g,'_').slice(0,40);
+    const payload = {
+      id: stateKey+'_'+safe+'_'+ts+'_'+Math.random().toString(36).slice(2,8), name: tourName||'Untitled', state: stateKey, duration,
+      savedAt: new Date().toISOString().slice(0,19),
+      days: days.map(d=>({location:d.location||'', title:d.title||'', products:[...(d.products||[])], themes:dayThemesDisplay(d), customThemes:d.customThemes||[], removedThemes:d.removedThemes||[], desc:d.desc||''}))
+    };
+    try { const r = await fetch('itineraries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok) throw new Error(); showToast('Itinerary saved — '+payload.name); }
+    catch(e){ showToast('Save failed — is the server running?'); }
+  }
+  function loadSavedItinerary(itin){
+    const d = (itin.days||[]).map(x=>({location:x.location||'',city:'',desc:x.desc||'',title:x.title||'',products:[...(x.products||[])],customThemes:x.customThemes||[],removedThemes:x.removedThemes||[]}));
+    setStateKey(itin.state);
+    // setStateKey triggers seed reset effect; override on next tick
+    setTimeout(()=>{ setTourName(itin.name); setDuration(itin.duration); setDays(d); setActiveDay(0); }, 0);
+    setView('builder'); showToast('Loaded — '+itin.name);
+  }
+  async function deleteSaved(id){
+    try { await fetch('itineraries/'+encodeURIComponent(id),{method:'DELETE'}); setSaved(s=>s.filter(x=>x.id!==id)); showToast('Deleted'); }
+    catch(e){ showToast('Delete failed'); }
+  }
+  useEffect(()=>{ if(view==='saved') loadSaved(); /* eslint-disable-next-line */ }, [view]);
+
+  // ---- export ----
+  function download(filename, content, mime){
+    const blob=new Blob([content],{type:mime}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function exportWord(){
+    let body = '<h1 style="font-family:Calibri,Arial">'+(tourName||'Itinerary')+'</h1>';
+    body += '<p style="font-family:Calibri,Arial;color:#555">'+cur.name+' · '+duration+' days</p>';
+    days.forEach((d,i)=>{
+      body+='<h3 style="font-family:Calibri,Arial">Day '+(i+1)+' — '+(d.location||'Not yet planned')+'</h3>';
+      if(d.desc) body+='<p style="font-family:Calibri,Arial">'+d.desc+'</p>';
+      if(d.products.length) body+='<p style="font-family:Calibri,Arial"><b>Products:</b> '+d.products.join(', ')+'</p>';
+      const th=dayThemesDisplay(d); if(th.length) body+='<p style="font-family:Calibri,Arial"><b>Themes:</b> '+th.join(', ')+'</p>';
+    });
+    const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>'+body+'</body></html>';
+    download((tourName||'itinerary')+'.doc', html, 'application/msword');
+    showToast('Exported Word doc · '+(tourName||'itinerary'));
+  }
+
+  // ---- derived metrics ----
+  const entries = Object.entries(cur.products||{});
+  const cleanEntries = entries.filter(e=>!e[1].issue);
+  const distinctProducts = cleanEntries.length;
+  const totalRows = (cur.allRows||[]).length;
+  const totalTours = new Set((cur.allRows||[]).map(r=>r.tour)).size;
+
+  let productsAdded=0, boardCount=0; const themeSet=new Set();
+  days.forEach(d=>{ d.products.forEach(p=>{ productsAdded++; const info=cur.products[p]; if(info){ if(info.board)boardCount++; (info.t||[]).forEach(t=>themeSet.add(t)); } });
+    dayThemesDisplay(d).forEach(t=>themeSet.add(t)); });
+  const daysPlanned = days.filter(d=>d.products.length>0).length;
+  const boardAlignment = productsAdded? Math.round(boardCount/productsAdded*100):0;
+
+  const titles = {
+    builder:['Itinerary builder','Design your tour day by day — suggestions drawn from market data'],
+    templates:['Itinerary templates','Start from a real scraped tour, then edit it in the builder'],
+    insights:['Product insights','What dominates the market — products ranked by tour count'],
+    gap:['Board vs operators','Where the aspirational and commercial views diverge'],
+    data:['Tagged data','The structured day-level asset behind every suggestion'],
+    saved:['Saved itineraries','Your saved tour designs — load into the builder to continue editing'],
+    analytics:['Analytics','Full dataset analysis — sources, geography, themes and duration'],
+    market:['Market Intelligence','Cross-filter tours by market, state and source type']
+  };
+  const [topTitle, topSub] = titles[view] || titles.builder;
+
+  // ---- nav ----
+  // Hidden from PM view while still in progress — not deleted, just excluded from NAV_VISIBLE.
+  const HIDDEN_TABS = ['insights','gap','data','analytics'];
+  const NAV_ALL = [
+    ['builder','Itinerary builder'],['templates','Itinerary templates'],['insights','Product insights'],
+    ['gap','Board vs operators'],['data','Tagged data'],['saved','Saved itineraries'],['analytics','Analytics'],
+    ['market','Opportunities']
+  ];
+  const NAV = NAV_ALL.filter(([k])=>!HIDDEN_TABS.includes(k));
+  const navStyle = (k)=> Object.assign(
+    {display:'flex',alignItems:'center',gap:'8px',padding:'7px 9px',borderRadius:'6px',fontSize:'12px',cursor:'pointer',transition:'background .12s'},
+    view===k ? {background:TINT,color:'#27500A',fontWeight:600} : {color:'#57534e'}
+  );
+
+  // ============ render helpers per view ============
+  function _builderShared(){
+    const active = days[activeDay] || {products:[]};
+    const sugQ = (suggestSearch||'').toLowerCase().trim();
+    const tabEntries = suggestTab==='popular' ? cleanEntries : cleanEntries.filter(e=>e[1].board);
+    let list;
+    if (sugQ) list = tabEntries.filter(e=>e[0].toLowerCase().includes(sugQ)).sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    else if (suggestTab==='popular') list = tabEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,24);
+    else list = tabEntries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    const chipKind = suggestTab==='board'?'board':'prod';
+    return {active, list, chipKind};
+  }
+
+  // Product name -> {competitors:[sourceKey,...], boards:[sourceKey,...]},
+  // built once from window.MARKET_DATA (already has source + products per tour).
+  const productSourceMap = useMemo(()=>{
+    const map = {};
+    (window.MARKET_DATA||[]).forEach(t=>{
+      (t.products||[]).forEach(p=>{
+        if(!map[p]) map[p] = {competitors:new Set(), boards:new Set()};
+        if(t.source_type==='Competitor') map[p].competitors.add(t.source);
+        else map[p].boards.add(t.source);
+      });
+    });
+    const out = {};
+    Object.keys(map).forEach(p=>{
+      out[p] = {
+        competitors: [...map[p].competitors].sort((a,b)=>sourceName(a).localeCompare(sourceName(b))),
+        boards:      [...map[p].boards].sort((a,b)=>sourceName(a).localeCompare(sourceName(b))),
+      };
+    });
+    return out;
+  }, []);
+
+  useEffect(()=>{
+    if(!sourcePopup) return;
+    const onDocClick = (e)=>{ if(!e.target.closest('.ca-source-popup') && !e.target.closest('.ca-source-info-btn')) setSourcePopup(null); };
+    document.addEventListener('mousedown', onDocClick);
+    return ()=>document.removeEventListener('mousedown', onDocClick);
+  }, [sourcePopup]);
+  function renderBuilder(){ return null; }
+  function renderBuilderDays(){
+    const {active} = _builderShared();
+    const dayOf={}; days.forEach((d,di)=>d.products.forEach(p=>{ if(dayOf[p]===undefined) dayOf[p]=di; }));
+
+    return (
+    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {days.map((d,i)=>{
+            const isActive=i===activeDay; const isBlank=!(d.location&&d.location.trim())&&d.products.length===0;
+            const isDragging = dragIdx===i;
+            const isDragOver = overIdx===i && dragIdx!==null && dragIdx!==i;
+            return (
+            <div key={i} onClick={()=>setActiveDay(i)}
+              draggable
+              onDragStart={e=>{ e.stopPropagation(); setDragIdx(i); e.dataTransfer.effectAllowed='move'; }}
+              onDragOver={e=>{ e.preventDefault(); e.stopPropagation(); if(overIdx!==i) setOverIdx(i); }}
+              onDrop={e=>{ e.preventDefault(); e.stopPropagation(); if(dragIdx!==null) reorderDay(dragIdx, i); setDragIdx(null); setOverIdx(null); }}
+              onDragEnd={e=>{ setDragIdx(null); setOverIdx(null); }}
+              style={{background:'#fff',border:'0.5px solid '+(isActive?GREEN:isDragOver?'#185FA5':'#e7e5e4'),borderRadius:'10px',overflow:'hidden',cursor:'pointer',
+                opacity:isDragging?0.4:(isBlank&&!isActive)?0.6:1,
+                boxShadow:isDragging?'0 6px 16px rgba(0,0,0,.18)':isActive?'0 0 0 1px '+GREEN:'none',
+                transform:isDragging?'scale(1.01)':'none',
+                transition:'border-color .15s,opacity .15s,box-shadow .15s,transform .15s'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'9px 12px',borderBottom:'0.5px solid #e7e5e4'}}>
+                <div title="Drag to reorder" style={{cursor:'grab',color:'#a8a29e',fontSize:'13px',lineHeight:1,userSelect:'none',padding:'2px'}}>⠿</div>
+                <div style={{borderRadius:'6px',padding:'2px 8px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',background:d.products.length?'#EAF3DE':'#f5f5f4',color:d.products.length?'#27500A':'#a8a29e'}}>{'Day '+(i+1)+(d.title&&d.title.trim()?' — '+d.title.trim():'')}</div>
+                <input value={d.title||''} onChange={e=>setDayTitle(i,e.target.value)} onClick={e=>e.stopPropagation()} placeholder="Day title (optional)" style={{border:'none',outline:'none',background:'transparent',fontSize:'12px',color:'#57534e',flex:1,minWidth:0}}/>
+                <div onClick={e=>{e.stopPropagation(); if(days.length>1) removeDay(i);}} title={days.length>1?'Remove this day':'At least one day is required'}
+                  style={{cursor:days.length>1?'pointer':'not-allowed',fontSize:'11px',color:days.length>1?'#8C2F1E':'#d6d3d1',padding:'3px 7px',borderRadius:'5px',background:'#FBE9E7',opacity:days.length>1?1:0.5,whiteSpace:'nowrap',flexShrink:0}}>Remove day</div>
+              </div>
+              <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+                {d.products.length ? (
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                    {d.products.map(p=>{ const info=cur.products[p]; const dirty=info&&info.issue;
+                      return <span key={p} onClick={e=>{e.stopPropagation();removeProduct(i,p);}} title="Click to remove" style={chip(dirty?'flag':(info&&info.board?'board':'prod'),{cursor:'pointer'})}>{p}{dirty?' ⚠':''} ×</span>; })}
+                  </div>
+                ) : <div style={{fontSize:'11px',color:'#a8a29e'}}>{isActive?'Search or click a suggestion to add places →':'Choose places from the suggestion panel →'}</div>}
+
+                {dayThemesDisplay(d).length ? (
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+                    {dayThemesDisplay(d).map(t=><span key={t} style={chip('theme',{cursor:'default'})}>{t}<span onClick={e=>{e.stopPropagation();removeTheme(i,t);}} style={{cursor:'pointer',marginLeft:'2px',opacity:.6}}>×</span></span>)}
+                  </div>
+                ) : null}
+
+                <textarea value={d.desc||''} onClick={e=>e.stopPropagation()}
+                  onChange={e=>{ e.stopPropagation(); setDesc(i,e.target.value); }}
+                  placeholder="Description (from source itinerary — edit as needed)…"
+                  rows={d.desc? Math.min(8, Math.max(2, Math.round((d.desc.length)/90)+1)) : 2}
+                  style={{border:'0.5px solid #e7e5e4',borderRadius:'6px',padding:'6px 8px',fontSize:'11px',background:'#fafaf9',resize:'vertical',lineHeight:'1.55',color:'#44403c',width:'100%',fontFamily:'inherit'}}/>
+
+                <input value={themeInputs[i]||''} onClick={e=>e.stopPropagation()}
+                  onChange={e=>setThemeInputs(s=>({...s,[i]:e.target.value}))}
+                  onKeyDown={e=>{ if(e.key==='Enter'){ addCustomTheme(i,themeInputs[i]||''); setThemeInputs(s=>({...s,[i]:''})); } }}
+                  placeholder="+ add a theme, press Enter" style={{border:'0.5px dashed #d6d3d1',borderRadius:'6px',padding:'4px 8px',fontSize:'11px',background:'#fafaf9'}}/>
+              </div>
+            </div>);
+          })}
+          <div onClick={addDay} style={{textAlign:'center',padding:'10px',borderRadius:'10px',border:'1px dashed #d6d3d1',color:'#57534e',fontSize:'12px',fontWeight:600,cursor:'pointer',background:'#fafaf9'}}>+ Add day</div>
+        </div>);
+  }
+
+  function renderSourceCoverage(){
+    const allSources = window.MARKET_DATA || [];
+    const totalCompSources  = new Set(allSources.filter(t=>t.source_type==='Competitor').map(t=>t.source)).size;
+    const totalBoardSources = new Set(allSources.filter(t=>t.source_type!=='Competitor').map(t=>t.source)).size;
+    const totalAllSources   = totalCompSources + totalBoardSources;
+
+    const uniqueProducts = [...new Set(days.flatMap(d=>d.products))];
+    const rows = uniqueProducts.map(name=>{
+      const info = productSourceMap[name] || {competitors:[], boards:[]};
+      const compN = info.competitors.length, boardN = info.boards.length;
+      return {name, compN, boardN, total: compN + boardN};
+    }).sort((a,b)=>b.total-a.total);
+
+    return (
+      <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',overflow:'hidden'}}>
+        <div style={{padding:'10px 14px',borderBottom:'0.5px solid #e7e5e4'}}>
+          <div style={{fontSize:'12px',fontWeight:700,color:'#1c1917'}}>Source coverage {uniqueProducts.length ? `(${uniqueProducts.length} products)` : ''}</div>
+        </div>
+        <div style={{padding:'10px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
+          {rows.length === 0 ? (
+            <div style={{fontSize:'11px',color:'#a8a29e'}}>Add products to your itinerary to see source coverage</div>
+          ) : rows.map(r=>{
+            const pct = totalAllSources ? Math.round((r.total/totalAllSources)*100) : 0;
+            const zero = r.total === 0;
+            return (
+              <div key={r.name} style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                <div style={{fontSize:'11px',color:'#1c1917',flex:'0 0 150px',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={r.name}>{r.name}</div>
+                <div style={{flex:'1 1 auto',minWidth:0}}><Bar pct={pct} color={zero?'#d6d3d1':'#185FA5'}/></div>
+                {zero ? (
+                  <div style={{fontSize:'10px',color:'#a8a29e',flexShrink:0,whiteSpace:'nowrap'}}>0 comp · 0 board</div>
+                ) : (
+                  <div style={{display:'flex',gap:'4px',flexShrink:0}}>
+                    <span style={chip('prod',{small:true})}>{r.compN} comp</span>
+                    <span style={chip('theme',{small:true})}>{r.boardN} board</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  function renderBuilderPanel(){
+    const {active, list, chipKind} = _builderShared();
+    const dayOf={}; days.forEach((d,di)=>d.products.forEach(p=>{ if(dayOf[p]===undefined) dayOf[p]=di; }));
+    return (<>
+
+          {/* suggestion panel */}
+          <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px'}}>
+            <div style={{display:'flex',borderBottom:'0.5px solid #e7e5e4'}}>
+              {[['popular','Popular'],['board','Board']].map(([k,l])=>(
+                <div key={k} onClick={()=>{setSuggestTab(k);setSuggestSearch('');setSourcePopup(null);}} style={{flex:1,padding:'8px 4px',fontSize:'11px',fontWeight:600,textAlign:'center',cursor:'pointer',borderBottom:'2px solid '+(suggestTab===k?GREEN:'transparent'),color:suggestTab===k?'#27500A':'#57534e'}}>{l}</div>
+              ))}
+            </div>
+            <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+              <input value={suggestSearch} onChange={e=>setSuggestSearch(e.target.value)} placeholder="Search products..." style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px'}}/>
+              <div style={{fontSize:'10px',color:'#a8a29e'}}>Adding to <b>Day {activeDay+1}</b></div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                {list.length? list.map(([name,info],idx)=>{
+                  const onActive=active.products.includes(name);
+                  const elsewhere=(!onActive&&dayOf[name]!==undefined)?dayOf[name]:-1;
+                  const inItin=onActive||elsewhere>=0;
+                  const isOpen=sourcePopup===name;
+                  const openAbove=idx >= list.length/2;
+                  const srcInfo=productSourceMap[name]||{competitors:[],boards:[]};
+                  return (
+                    <span key={name} className="ca-source-chip-wrap" style={{position:'relative',display:'inline-flex',alignItems:'center'}}>
+                      <span onClick={()=>toggleProduct(name)} title={onActive?'On this day — click to remove':(elsewhere>=0?('On Day '+(elsewhere+1)):'Add to Day '+(activeDay+1))} style={chip(chipKind,{cursor:'pointer',faded:inItin})}>{inItin?'✓':'+'} {name}</span>
+                      <span
+                        className={'ca-source-info-btn'+(isOpen?' is-open':'')}
+                        onClick={(e)=>{e.stopPropagation();setSourcePopup(isOpen?null:name);}}
+                        title="Show sources"
+                        style={{marginLeft:'2px',fontSize:'12px',lineHeight:1,padding:'0 2px'}}
+                      >ⓘ</span>
+                      {isOpen && (
+                        <div className="ca-source-popup" style={{
+                          position:'absolute', left:0, zIndex:40,
+                          top: openAbove ? 'auto' : 'calc(100% + 6px)',
+                          bottom: openAbove ? 'calc(100% + 6px)' : 'auto',
+                          background:'#fff', border:'0.5px solid #e7e5e4', borderRadius:'8px',
+                          boxShadow:'0 6px 20px rgba(0,0,0,.12)', padding:'10px 12px',
+                          maxWidth:'260px', minWidth:'200px',
+                        }}>
+                          <div style={{fontSize:'12px',fontWeight:700,color:'#1c1917',marginBottom:'8px'}}>{name}</div>
+                          <div style={{marginBottom:'8px'}}>
+                            <div style={{fontSize:'10px',fontWeight:700,color:'#0C447C',textTransform:'uppercase',letterSpacing:'.03em',marginBottom:'4px'}}>Competitors ({srcInfo.competitors.length})</div>
+                            {srcInfo.competitors.length
+                              ? <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{srcInfo.competitors.map(s=><span key={s} style={chip('prod',{small:true})}>{sourceName(s)}</span>)}</div>
+                              : <div style={{fontSize:'11px',color:'#a8a29e'}}>No competitors</div>}
+                          </div>
+                          <div>
+                            <div style={{fontSize:'10px',fontWeight:700,color:'#633806',textTransform:'uppercase',letterSpacing:'.03em',marginBottom:'4px'}}>Boards ({srcInfo.boards.length})</div>
+                            {srcInfo.boards.length
+                              ? <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>{srcInfo.boards.map(s=><span key={s} style={chip('board',{small:true})}>{sourceName(s)}</span>)}</div>
+                              : <div style={{fontSize:'11px',color:'#a8a29e'}}>No boards</div>}
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  );
+                }) : <div style={{fontSize:'11px',color:'#a8a29e'}}>No products match</div>}
+              </div>
+            </div>
+          </div>
+
+          {renderSourceCoverage()}
+
+          {/* ── insights panel ── */}
+          {(()=>{
+            const allTmpls = cur.templates || [];
+            const myThemes = new Set(themeSet);
+
+            // missing themes + avg day position
+            const missingThemes = THEMES.filter(t=>!myThemes.has(t));
+            const themeAvgDay = {};
+            THEMES.forEach(th=>{
+              const positions=[];
+              allTmpls.forEach(tpl=>{
+                (tpl.days||[]).forEach((d,di)=>{
+                  const hasIt=(d.themes||[]).includes(th)||(d.places||[]).some(p=>{ const info=cur.products[p]; return info&&(info.t||[]).includes(th); });
+                  if(hasIt) positions.push(di+1);
+                });
+              });
+              themeAvgDay[th] = positions.length? Math.round(positions.reduce((a,b)=>a+b,0)/positions.length) : null;
+            });
+
+            // product overlap counts
+            let boardOnly=0, compOnly=0, both=0;
+            const allMyProducts = [...new Set(days.flatMap(d=>d.products))];
+            allMyProducts.forEach(p=>{ const info=cur.products[p]; if(!info) return; if(info.board&&info.op) both++; else if(info.board) boardOnly++; else if(info.op) compOnly++; });
+
+            const cardHd={fontSize:'12px',fontWeight:700,color:'#1c1917',marginBottom:'4px'};
+            const muted={fontSize:'10px',color:'#a8a29e'};
+
+            return (<>
+
+              {/* theme gaps */}
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px'}}>
+                <div style={cardHd}>Theme gaps</div>
+                {missingThemes.length===0
+                  ? <div style={{fontSize:'11px',color:'#27500A',fontWeight:600}}>✓ All 8 themes covered</div>
+                  : missingThemes.map(th=>(
+                    <div key={th} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'7px',gap:'8px'}}>
+                      <span style={chip('flag')}>{th}</span>
+                      {themeAvgDay[th]
+                        ? <span style={{...muted,background:'#f5f5f4',borderRadius:'4px',padding:'2px 7px',whiteSpace:'nowrap'}}>avg Day {themeAvgDay[th]}</span>
+                        : <span style={muted}>rare</span>}
+                    </div>
+                  ))
+                }
+              </div>
+
+              {/* product overlap */}
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px'}}>
+                <div style={cardHd}>Your products — market presence</div>
+                <div style={{fontSize:'11px',color:'#78716c',marginBottom:'2px'}}>Of the {allMyProducts.length} products you've added:</div>
+                <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                  <div style={{flex:1,background:'#EAF3DE',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#27500A',lineHeight:1}}>{both}</div>
+                    <div style={{fontSize:'10px',color:'#27500A',fontWeight:600,marginTop:'3px'}}>in both</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>board + comp</div>
+                  </div>
+                  <div style={{flex:1,background:'#FAEEDA',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#633806',lineHeight:1}}>{boardOnly}</div>
+                    <div style={{fontSize:'10px',color:'#633806',fontWeight:600,marginTop:'3px'}}>board only</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>promoted</div>
+                  </div>
+                  <div style={{flex:1,background:'#E6F1FB',borderRadius:'8px',padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:'22px',fontWeight:700,color:'#0C447C',lineHeight:1}}>{compOnly}</div>
+                    <div style={{fontSize:'10px',color:'#0C447C',fontWeight:600,marginTop:'3px'}}>comp only</div>
+                    <div style={{fontSize:'9px',color:'#57534e',marginTop:'1px'}}>actually sold</div>
+                  </div>
+                </div>
+              </div>
+
+            </>);
+          })()}
+
+    </>);
+  }
+
+  function buildTplCard(t, maxPop){
+    const allProds = []; const seenProds = new Set();
+    (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ if(!seenProds.has(p)){ seenProds.add(p); allProds.push(p); } }));
+    const allThemes = [...tplThemesOf(t)];
+    let board=0, resolved=0;
+    (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ const info=prodInfo(d.state,p); if(info){ resolved++; if(info.board) board++; } }));
+    const boardPct = resolved? Math.round(board/resolved*100) : 0;
+    const uniqStates=[...new Set(t.states||[])];
+    return {
+      t, isBoard:t.type==='Board', dur:(t.days||[]).length, prodCount:allProds.length, allProds, allThemes,
+      themeCount:allThemes.length, boardPct, boardColor: boardPct>=70?'#27500A':boardPct>=50?'#92400E':'#991B1B',
+      uniqStates, isMultiState: uniqStates.length>1, isTop:(t.pop||0)>=maxPop*0.6,
+      popPct: Math.round((t.pop||0)/maxPop*100),
+    };
+  }
+
+  function buildTplPreview(t){
+    const allProds=[]; const seen=new Set();
+    (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ if(!seen.has(p)){ seen.add(p); allProds.push(p); } }));
+    const allThemes=[...tplThemesOf(t)];
+    const themeDays={};
+    (t.days||[]).forEach(d=>{
+      const dThemes=new Set(d.themes||[]);
+      (d.places||[]).forEach(p=>{ const info=prodInfo(d.state,p); if(info)(info.t||[]).forEach(x=>dThemes.add(x)); });
+      dThemes.forEach(th=>{ themeDays[th]=(themeDays[th]||0)+1; });
+    });
+    const maxThemeDays = Math.max(1, ...Object.values(themeDays).concat([0]));
+    const insightThemes = THEMES.filter(th=>themeDays[th]).map(th=>({label:th,count:themeDays[th],pct:Math.round(themeDays[th]/maxThemeDays*100)}));
+    const missingThemes = THEMES.filter(th=>!themeDays[th]);
+    const stateDays={};
+    (t.days||[]).forEach(d=>{ if(d.state) stateDays[d.state]=(stateDays[d.state]||0)+1; });
+    const insightStates = Object.entries(stateDays).map(([s,count])=>({state:s,count}));
+    const prodDays={};
+    (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ prodDays[p]=(prodDays[p]||0)+1; }));
+    const totalDays=(t.days||[]).length||1;
+    const topProducts = Object.entries(prodDays).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([label,days])=>({label,days,pct:Math.round(days/totalDays*100)}));
+    return {allProds, allThemes, insightThemes, missingThemes, insightStates, topProducts};
+  }
+
+  function renderTplPreviewModal(){
+    if(!previewTpl) return null;
+    const t=previewTpl, pv=buildTplPreview(t), isBoard=t.type==='Board';
+    return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={()=>setPreviewTpl(null)}>
+      <div style={{background:'#fff',borderRadius:'12px',width:'100%',maxWidth:'1200px',maxHeight:'calc(100vh - 24px)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
+
+        <div style={{padding:'16px 20px',borderBottom:'0.5px solid #e7e5e4',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'12px',flexShrink:0}}>
+          <div>
+            <div style={{fontSize:'16px',fontWeight:700,lineHeight:1.3}}>{t.name}</div>
+            <div style={{display:'flex',alignItems:'center',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
+              <span style={chip(isBoard?'board':'prod',{small:true})}>{t.type}</span>
+              <span style={{fontSize:'12px',color:'#a8a29e'}}>{t.source}</span>
+              {t.url? <a href={t.url} target="_blank" rel="noopener" style={{fontSize:'12px',color:'#185FA5',textDecoration:'none',fontWeight:500}}>View original ↗</a>:null}
+            </div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'3px',marginTop:'6px'}}>
+              {(t.states||[]).map(s=><span key={s} style={stateChipStyle(s)}>{s}</span>)}
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'6px',flexShrink:0}}>
+            <button onClick={()=>{ setPreviewTpl(null); setConfirmTpl(t); }} style={primaryBtn}>Start from this</button>
+            <div onClick={()=>setPreviewTpl(null)} style={{width:'30px',height:'30px',borderRadius:'6px',border:'0.5px solid #e7e5e4',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'#57534e'}}>✕</div>
+          </div>
+        </div>
+
+        <div style={{display:'flex',borderBottom:'0.5px solid #e7e5e4',background:'#fafaf9',flexShrink:0}}>
+          {[['Days',(t.days||[]).length],['Products',pv.allProds.length],['Themes',pv.allThemes.length+'/'+THEMES.length]].map(([label,val])=>(
+            <div key={label} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'10px',gap:'2px'}}>
+              <div style={{fontSize:'20px',fontWeight:700}}>{val}</div>
+              <div style={{fontSize:'10px',color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:'16px'}}>
+
+        <div>
+          <div style={{fontSize:'10px',fontWeight:600,color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'9px'}}>Day by day</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:'8px'}}>
+            {(t.days||[]).map((d,i)=>(
+              <div key={i} style={{border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'10px 11px',display:'flex',flexDirection:'column',gap:'5px',background:'#fafaf9'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                  <span style={{fontSize:'9px',fontWeight:700,color:'#27500A',background:'#EAF3DE',borderRadius:'4px',padding:'1px 6px',whiteSpace:'nowrap'}}>Day {i+1}</span>
+                  {d.state? <span style={stateChipStyle(d.state,true)}>{d.state}</span>:null}
+                </div>
+                <div style={{fontSize:'12px',fontWeight:700}}>{d.title||d.city}</div>
+                {d.desc? <div style={{fontSize:'10px',color:'#57534e',lineHeight:1.45,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{d.desc}</div>:null}
+                <div style={{display:'flex',flexWrap:'wrap',gap:'2px',marginTop:'1px'}}>
+                  {(d.places||[]).slice(0,3).map(p=>{ const info=prodInfo(d.state,p); return <span key={p} style={chip(info&&info.board?'board':'prod',{small:true})}>{p}</span>; })}
+                  {(d.places||[]).length>3? <span style={{fontSize:'10px',color:'#a8a29e',padding:'2px 6px'}}>+{(d.places||[]).length-3} more</span>:null}
+                </div>
+                {(d.themes||[]).length? <div style={{fontSize:'9px',color:'#27500A',marginTop:'1px'}}>{d.themes.join(' · ')}</div>:null}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:'12px',alignItems:'start'}}>
+          <div style={{border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'12px 14px'}}>
+            <div style={{fontSize:'12px',fontWeight:600,marginBottom:'2px'}}>Theme coverage</div>
+            <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'10px'}}>Days this itinerary covers each theme</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'5px'}}>
+              {pv.insightThemes.map(it=>(
+                <div key={it.label} style={{display:'flex',alignItems:'center',gap:'7px'}}>
+                  <div style={{fontSize:'11px',color:'#57534e',width:'108px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flexShrink:0}}>{it.label}</div>
+                  <Bar pct={it.pct} color="#1D9E75"/>
+                  <div style={{fontSize:'10px',color:'#a8a29e',minWidth:'28px',textAlign:'right'}}>{it.count}d</div>
+                </div>
+              ))}
+            </div>
+            {pv.missingThemes.length? (
+              <div style={{marginTop:'10px',borderTop:'0.5px solid #f5f5f4',paddingTop:'8px'}}>
+                <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'5px'}}>Not covered in this itinerary</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'3px'}}>
+                  {pv.missingThemes.map(th=><span key={th} style={{display:'inline-flex',padding:'2px 8px',borderRadius:'99px',fontSize:'11px',background:'#f5f5f4',color:'#a8a29e',border:'0.5px dashed #d6d3d1'}}>{th}</span>)}
+                </div>
+              </div>
+            ):null}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+            <div style={{border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'12px 14px'}}>
+              <div style={{fontSize:'12px',fontWeight:600,marginBottom:'2px'}}>Days per state</div>
+              <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'9px'}}>How the itinerary is distributed geographically</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+                {pv.insightStates.map(ist=>(
+                  <div key={ist.state} style={{...stateChipStyle(ist.state),padding:'5px 10px',fontSize:'12px'}}>
+                    {ist.state} <strong style={{fontWeight:700,marginLeft:4}}>{ist.count}</strong> <span style={{opacity:.6,fontWeight:400,marginLeft:2}}>days</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'12px 14px'}}>
+              <div style={{fontSize:'12px',fontWeight:600,marginBottom:'2px'}}>Most-featured products</div>
+              <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'9px'}}>Products appearing across multiple days</div>
+              <div style={{display:'flex',flexDirection:'column',gap:'5px'}}>
+                {pv.topProducts.map(tp=>(
+                  <div key={tp.label} style={{display:'flex',alignItems:'center',gap:'7px'}}>
+                    <div style={{fontSize:'11px',color:'#0C447C',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{tp.label}</div>
+                    <div style={{width:'50px',flexShrink:0,display:'flex'}}><Bar pct={tp.pct} color="#185FA5"/></div>
+                    <div style={{fontSize:'10px',color:'#a8a29e',minWidth:'32px',textAlign:'right',flexShrink:0}}>{tp.days}d</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        </div>
+      </div>
+    </div>);
+  }
+
+  function renderTplConfirmModal(){
+    if(!confirmTpl) return null;
+    const t=confirmTpl;
+    const allProds=[...new Set((t.days||[]).flatMap(d=>d.places||[]))];
+    const route=[]; let last=null;
+    (t.days||[]).forEach(d=>{ const cy=d.title||d.city; if(cy&&cy!==last){ route.push(cy); last=cy; } });
+    const routeStr = route.slice(0,5).join(' → ') + (route.length>5? ` + ${route.length-5} more`:'');
+    return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setConfirmTpl(null)}>
+      <div style={{background:'#fff',borderRadius:'12px',width:'100%',maxWidth:'420px',padding:'24px',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:'16px',fontWeight:700,marginBottom:'4px'}}>Load this template?</div>
+        <div style={{fontSize:'12px',color:'#57534e',marginBottom:'16px'}}>This will start a new builder session from the template below.</div>
+        <div style={{background:'#fafaf9',border:'0.5px solid #e7e5e4',borderRadius:'8px',padding:'14px 16px',marginBottom:'16px'}}>
+          <div style={{fontSize:'14px',fontWeight:700,marginBottom:'6px'}}>{t.name}</div>
+          <div style={{fontSize:'12px',color:'#57534e',marginBottom:'8px'}}>{t.source} · {(t.days||[]).length} days · {allProds.length} products</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'3px',marginBottom:'8px'}}>
+            {(t.states||[]).map(s=><span key={s} style={stateChipStyle(s)}>{s}</span>)}
+          </div>
+          <div style={{fontSize:'11px',color:'#57534e'}}>{routeStr}</div>
+        </div>
+        <div style={{background:'#FFFBEB',border:'0.5px solid #FDE68A',borderRadius:'6px',padding:'9px 12px',fontSize:'11px',color:'#92400E',marginBottom:'20px'}}>
+          Your current builder session will be replaced. Export or save your current itinerary first if you want to keep it.
+        </div>
+        <div style={{display:'flex',gap:'8px'}}>
+          <button onClick={()=>setConfirmTpl(null)} style={{...ghostBtn,flex:1,textAlign:'center'}}>Cancel</button>
+          <button onClick={()=>{ loadTemplate(t); setConfirmTpl(null); }} style={{...primaryBtn,flex:1,textAlign:'center'}}>Load template →</button>
+        </div>
+      </div>
+    </div>);
+  }
+
+  function renderTemplates(){
+    const tpls = tplsFiltered;
+    const maxPop = Math.max(1, ...allTpls.map(t=>t.pop||0));
+    const cards = tpls.map(t=>buildTplCard(t, maxPop));
+    const railLabel = {fontSize:'10px',fontWeight:600,color:'#57534e',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'6px'};
+    const hasActiveFilters = tplSourceFilter!=='all'||tplStateFilter.length>0||!!tplLocationFilter||tplThemeFilter.length>0||tplSourceNameFilter.length>0||!!tplSearch||tplRouteFilter.length>0||tplDurMin>1||tplDurMax<30||!!tplExactMatch;
+    function clearAll(){
+      setTplSourceFilter('all'); setTplStateFilter([]); setTplLocationFilter(''); setTplThemeFilter([]);
+      setTplSourceNameFilter([]); setTplSearch(''); setTplRouteFilter([]); setTplDurMin(1); setTplDurMax(30);
+      setTplExactMatch(null);
+    }
+
+    return (
+    <div style={{display:'flex',flex:1,overflow:'hidden',height:'100%'}}>
+
+      {/* ── filter rail ── */}
+      <div style={{width:'238px',minWidth:'238px',background:'#fff',borderRight:'0.5px solid #e7e5e4',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:'16px'}}>
+
+        <input value={tplSearch} onChange={e=>{ setTplSearch(e.target.value); if(tplExactMatch) setTplExactMatch(null); }} placeholder="Search name or source…"
+          style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 9px',fontSize:'12px'}}/>
+
+        <div>
+          <div style={railLabel}>Sort by</div>
+          <select value={tplSortBy} onChange={e=>setTplSortBy(e.target.value)} style={{width:'100%',border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 8px',fontSize:'12px',background:'#fff',cursor:'pointer'}}>
+            <option value="pop">Most popular</option>
+            <option value="dur-d">Longest first</option>
+            <option value="dur-a">Shortest first</option>
+            <option value="board">Highest board alignment</option>
+          </select>
+        </div>
+
+        <div>
+          <div style={railLabel}>Source type</div>
+          <div style={{display:'flex',gap:'2px',background:'#f5f5f4',borderRadius:'7px',padding:'3px'}}>
+            {[['all','All'],['Competitor','Operator'],['Board','Board']].map(([k,l])=>(
+              <div key={k} onClick={()=>setTplSourceFilter(k)} style={{flex:1,textAlign:'center',padding:'5px 4px',fontSize:'11px',fontWeight:600,cursor:'pointer',borderRadius:'5px',background:tplSourceFilter===k?'#1c1917':'transparent',color:tplSourceFilter===k?'#fff':'#57534e'}}>{l}</div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={railLabel}>States</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
+            {stateKeys.map(s=>{
+              const count = allTpls.filter(t=>(t.states||[]).includes(s)).length;
+              const active = tplStateFilter.includes(s);
+              return (
+                <div key={s} onClick={()=>setTplStateFilter(prev=>prev.includes(s)?prev.filter(x=>x!==s):[...prev,s])}
+                  style={active?{...stateChipStyle(s),cursor:'pointer',gap:'4px'}:{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:'4px',padding:'3px 8px',borderRadius:'5px',fontSize:'11px',background:'#f5f5f4',color:'#57534e',border:'0.5px solid #e7e5e4'}}>
+                  {s}<span style={{fontSize:'10px',opacity:.7}}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'7px'}}>
+            <div style={railLabel}>Duration</div>
+            <div style={{fontSize:'11px',color:'#1D9E75',fontWeight:600}}>{tplDurMin===1&&tplDurMax===30?'Any length':`${tplDurMin}–${tplDurMax} days`}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+            <input type="number" min="1" max="30" value={tplDurMin}
+              onChange={e=>setTplDurMin(Math.max(1,Math.min(+e.target.value||1,tplDurMax)))}
+              style={{width:'52px',border:'0.5px solid #d6d3d1',borderRadius:'5px',padding:'5px 6px',fontSize:'12px',textAlign:'center'}}/>
+            <div style={{fontSize:'11px',color:'#a8a29e',flex:1,textAlign:'center'}}>to</div>
+            <input type="number" min="1" max="30" value={tplDurMax}
+              onChange={e=>setTplDurMax(Math.min(30,Math.max(+e.target.value||30,tplDurMin)))}
+              style={{width:'52px',border:'0.5px solid #d6d3d1',borderRadius:'5px',padding:'5px 6px',fontSize:'12px',textAlign:'center'}}/>
+            <div style={{fontSize:'11px',color:'#a8a29e'}}>days</div>
+          </div>
+        </div>
+
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'4px'}}>
+            <div style={railLabel}>Route cities</div>
+            {tplRouteFilter.length? <div style={{fontSize:'10px',fontWeight:700,color:'#1D9E75'}}>{tplRouteFilter.length} selected</div>:null}
+          </div>
+          <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'7px',lineHeight:'1.4'}}>Templates must visit <strong style={{color:'#57534e'}}>all</strong> selected places — mix states freely</div>
+          <input value={routeSearch} onChange={e=>setRouteSearch(e.target.value)}
+            placeholder="Search cities…" style={{width:'100%',border:'0.5px solid #d6d3d1',borderRadius:'5px',padding:'5px 8px',fontSize:'11px',marginBottom:'7px'}}/>
+          <div style={{display:'flex',flexDirection:'column',gap:'3px',maxHeight:180,overflowY:'auto'}}>
+            {routeSearchOptions.map(city=>{
+              const active = tplRouteFilter.includes(city);
+              return (
+                <div key={city} onClick={()=>setTplRouteFilter(prev=>prev.includes(city)?prev.filter(x=>x!==city):[...prev,city])}
+                  style={{cursor:'pointer',flexShrink:0,padding:'4px 9px',lineHeight:'16px',borderRadius:'6px',fontSize:'11px',fontWeight:active?600:400,background:active?TINT:'#fafaf9',color:active?'#27500A':'#57534e',border:'0.5px solid '+(active?'#C0DD97':'#e7e5e4'),overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {city}
+                </div>
+              );
+            })}
+            {routeSearchOptions.length===0? <div style={{fontSize:'11px',color:'#a8a29e',padding:'4px 9px'}}>No matches</div>:null}
+          </div>
+        </div>
+
+        <div>
+          <div style={railLabel}>Themes</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
+            {tplThemeOptions.map(th=>{
+              const count = allTpls.filter(t=>tplThemesOf(t).has(th)).length;
+              const active = tplThemeFilter.includes(th);
+              return (
+                <div key={th} onClick={()=>setTplThemeFilter(prev=>prev.includes(th)?prev.filter(x=>x!==th):[...prev,th])}
+                  style={{cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 9px',borderRadius:'6px',fontSize:'11px',fontWeight:active?600:400,background:active?TINT:'#fafaf9',color:active?'#27500A':'#57534e',border:'0.5px solid '+(active?'#C0DD97':'#e7e5e4')}}>
+                  {th}<span style={{fontSize:'10px',color:active?'#27500A':'#a8a29e',opacity:active?.65:1}}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div style={railLabel}>Market</div>
+          <select value={tplLocationFilter} onChange={e=>setTplLocationFilter(e.target.value)} style={{width:'100%',border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 8px',fontSize:'12px',background:'#fff',cursor:'pointer'}}>
+            <option value="">All markets</option>
+            {tplLocationOptions.map(x=><option key={x} value={x}>{x}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <div style={railLabel}>Sources</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
+            {tplSourceOptions.map(src=>{
+              const active = tplSourceNameFilter.includes(src);
+              const srcTpl = allTpls.find(t=>t.source===src);
+              const srcType = srcTpl? srcTpl.type : '';
+              return (
+                <div key={src} onClick={()=>setTplSourceNameFilter(prev=>prev.includes(src)?prev.filter(x=>x!==src):[...prev,src])}
+                  style={{cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'6px',padding:'4px 9px',borderRadius:'6px',fontSize:'11px',fontWeight:active?600:400,background:active?TINT:'#fafaf9',color:active?'#27500A':'#57534e',border:'0.5px solid '+(active?'#C0DD97':'#e7e5e4')}}>
+                  <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{src}</span>
+                  <span style={chip(srcType==='Board'?'board':'prod',{small:true})}>{srcType}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── cards area ── */}
+      <div style={{flex:1,overflowY:'auto',padding:'14px 16px',background:'#f5f5f4',display:'flex',flexDirection:'column',gap:'10px'}}>
+
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
+          <span style={{fontSize:'12px',color:'#57534e'}}>{cards.length} of {allTpls.length} itineraries</span>
+          {hasActiveFilters? <button onClick={clearAll} style={{...ghostBtn,padding:'4px 10px',fontSize:'11px'}}>✕ Clear filters</button>:null}
+        </div>
+
+        {cards.length? (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'10px',alignItems:'start'}}>
+            {cards.map((c,i)=>{
+              const t=c.t;
+              return (
+              <div key={t.url||i} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',overflow:'hidden'}}>
+
+                <div style={{padding:'11px 13px',borderBottom:'0.5px solid #f5f5f4'}}>
+                  <div style={{fontSize:'13px',fontWeight:700,lineHeight:1.3,marginBottom:'3px'}}>{t.name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+                    <span style={chip(c.isBoard?'board':'prod',{small:true})}>{t.type}</span>
+                    <span style={{fontSize:'11px',color:'#a8a29e'}}>{t.source}</span>
+                    {t.url? <a href={t.url} target="_blank" rel="noopener" style={{fontSize:'11px',color:'#185FA5',textDecoration:'none',fontWeight:500}}>original ↗</a>:null}
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'3px',marginTop:'5px'}}>
+                    {c.uniqStates.map(s=><span key={s} style={stateChipStyle(s,true)}>{s}</span>)}
+                    {c.isMultiState? <span style={{display:'inline-flex',alignItems:'center',fontSize:'10px',fontWeight:600,color:'#5B21B6',background:'#EDE9FE',border:'0.5px solid #DDD6FE',borderRadius:'3px',padding:'1px 6px'}}>Multi-state</span>:null}
+                    {c.isTop? <span style={{display:'inline-flex',alignItems:'center',gap:'2px',fontSize:'10px',fontWeight:600,color:'#27500A',background:'#EAF3DE',border:'0.5px solid #C0DD97',borderRadius:'3px',padding:'1px 6px'}}>★ Popular</span>:null}
+                  </div>
+                </div>
+
+                <div style={{display:'flex',alignItems:'stretch',borderBottom:'0.5px solid #f5f5f4',background:'#fafaf9'}}>
+                  {[['Days',c.dur],['Products',c.prodCount],['Themes',c.themeCount+'/'+THEMES.length]].map(([label,val])=>(
+                    <React.Fragment key={label}>
+                      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'8px 4px',gap:'1px'}}>
+                        <div style={{fontSize:'17px',fontWeight:700}}>{val}</div>
+                        <div style={{fontSize:'9px',color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</div>
+                      </div>
+                      <div style={{width:'0.5px',background:'#e7e5e4'}}/>
+                    </React.Fragment>
+                  ))}
+                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'8px 4px',gap:'1px'}}>
+                    <div style={{fontSize:'17px',fontWeight:700,color:c.boardColor}}>{c.boardPct}%</div>
+                    <div style={{fontSize:'9px',color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.05em'}}>Board</div>
+                  </div>
+                  <div style={{flex:2,padding:'8px 10px',display:'flex',flexDirection:'column',gap:'4px',justifyContent:'center',borderLeft:'0.5px solid #e7e5e4'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:'9px',color:'#a8a29e'}}><span>Popularity</span><span>{t.pop||0}</span></div>
+                    <Bar pct={c.popPct} color="#1D9E75"/>
+                    <div style={{fontSize:'9px',color:'#a8a29e'}}>Board alignment</div>
+                    <Bar pct={c.boardPct} color={c.boardPct>=70?'#1D9E75':c.boardPct>=50?'#F59E0B':'#EF4444'}/>
+                  </div>
+                </div>
+
+                {c.allProds.length? (
+                  <div style={{padding:'9px 13px',borderBottom:'0.5px solid #f5f5f4'}}>
+                    <div style={{fontSize:'9px',fontWeight:600,color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'5px'}}>Top products</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'3px'}}>
+                      {c.allProds.slice(0,5).map(p=><span key={p} style={chip('prod',{small:true})}>{p}</span>)}
+                      {c.allProds.length>5? <span style={{fontSize:'10px',color:'#a8a29e',padding:'2px 4px'}}>+{c.allProds.length-5} more</span>:null}
+                    </div>
+                  </div>
+                ):null}
+
+                {c.allThemes.length? (
+                  <div style={{padding:'9px 13px',borderBottom:'0.5px solid #f5f5f4'}}>
+                    <div style={{fontSize:'9px',fontWeight:600,color:'#a8a29e',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'5px'}}>Themes</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:'3px'}}>
+                      {c.allThemes.slice(0,4).map(x=><span key={x} style={chip('theme',{small:true})}>{x}</span>)}
+                      {c.allThemes.length>4? <span style={{fontSize:'10px',color:'#a8a29e',padding:'2px 4px'}}>+{c.allThemes.length-4} more</span>:null}
+                    </div>
+                  </div>
+                ):null}
+
+                <div style={{padding:'10px 13px',display:'flex',alignItems:'center',gap:'8px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 10px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'#EAF3DE',color:'#27500A',border:'0.5px solid #C0DD97',cursor:'pointer',flex:1,justifyContent:'center'}} onClick={()=>setConfirmTpl(t)}>Start from this</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 10px',borderRadius:'6px',fontSize:'12px',border:'0.5px solid #d6d3d1',color:'#57534e',cursor:'pointer',whiteSpace:'nowrap',flex:1,justifyContent:'center'}} onClick={()=>setPreviewTpl(t)}>Preview</div>
+                </div>
+
+              </div>);
+            })}
+          </div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'60px 20px',gap:'12px',background:'#fff',borderRadius:'10px',border:'0.5px solid #e7e5e4'}}>
+            <div style={{fontSize:'14px',fontWeight:600,color:'#57534e'}}>No templates match your filters</div>
+            <div style={{fontSize:'12px',color:'#a8a29e',textAlign:'center'}}>Try removing some place or theme filters — multi-state tours cover many cities</div>
+            <button onClick={clearAll} style={{...ghostBtn,padding:'7px 14px'}}>Clear all filters</button>
+          </div>
+        )}
+
+      </div>
+    </div>);
+  }
+
+  function renderInsights(){
+    const allSorted = entries.slice().sort((a,b)=>b[1].pop-a[1].pop).slice(0,30);
+    const maxAll = allSorted.length?allSorted[0][1].pop:1;
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'6px'}}>
+      <div style={{fontSize:'11px',color:'#57534e',marginBottom:'6px'}}>Top products in {cur.name} by number of tours that include them.</div>
+      {allSorted.map(([name,info])=>(
+        <div key={name} style={{display:'flex',alignItems:'center',gap:'10px',padding:'4px 0'}}>
+          <div style={{width:'220px',fontSize:'12px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</div>
+          <span style={chip(info.issue?'flag':(info.board?(info.op?'prod':'board'):'theme'),{small:true})}>{info.issue?'Needs cleanup':(info.board?(info.op?'Both':'Board only'):'Operators')}</span>
+          <Bar pct={Math.round(info.pop/maxAll*100)} color={info.issue?'#D98A74':'#378ADD'}/>
+          <div style={{fontSize:'11px',color:'#a8a29e',minWidth:'30px',textAlign:'right'}}>{info.pop}</div>
+        </div>
+      ))}
+    </div>);
+  }
+
+  function renderGap(){
+    const boardOnly = cleanEntries.filter(e=>e[1].board&&!e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const both      = cleanEntries.filter(e=>e[1].board&&e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const opOnly    = cleanEntries.filter(e=>!e[1].board&&e[1].op).sort((a,b)=>b[1].pop-a[1].pop);
+    const col = (title, sub, arr, kind)=>(
+      <div style={{flex:1,minWidth:'220px',background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',gap:'8px'}}>
+        <div><div style={{fontSize:'12px',fontWeight:600}}>{title} <span style={{color:'#a8a29e'}}>({arr.length})</span></div><div style={{fontSize:'10px',color:'#57534e'}}>{sub}</div></div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>{arr.slice(0,40).map(([n])=><span key={n} onClick={()=>{setView('builder');toggleProduct(n);}} style={chip(kind,{cursor:'pointer',small:true})}>{n}</span>)}</div>
+      </div>);
+    return (
+    <div style={{padding:'14px 16px',display:'flex',gap:'10px',flexWrap:'wrap'}}>
+      {col('Board only','Promoted by tourism board, not sold by operators', boardOnly,'board')}
+      {col('Both','Aspirational AND commercial — safe anchors', both,'prod')}
+      {col('Operators only','Sold by operators, board ignores', opOnly,'theme')}
+    </div>);
+  }
+
+  function renderData(){
+    const rows = cur.allRows||[];
+    const dq=(dataSearch||'').toLowerCase().trim();
+    const filtered = rows.filter(r=>{
+      if(dataFilter==='board'&&r.type!=='Board') return false;
+      if(dataFilter==='comp'&&r.type!=='Competitor') return false;
+      if(dq){ const hay=(r.tour+' '+r.source+' '+r.city+' '+r.location+' '+r.products+' '+r.themes).toLowerCase(); if(!hay.includes(dq)) return false; }
+      return true;
+    });
+    const PER=50; const pages=Math.max(1,Math.ceil(filtered.length/PER)); const pg=Math.min(dataPage,pages-1);
+    const slice=filtered.slice(pg*PER,pg*PER+PER);
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}}>
+      <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
+        {[['all','All sources'],['board','Board'],['comp','Competitor']].map(([k,l])=>(
+          <button key={k} onClick={()=>{setDataFilter(k);setDataPage(0);}} style={{padding:'5px 11px',fontSize:'11px',fontWeight:600,borderRadius:'6px',cursor:'pointer',border:'0.5px solid '+(dataFilter===k?'#C0DD97':'#d6d3d1'),background:dataFilter===k?TINT:'#fff',color:dataFilter===k?'#27500A':'#57534e'}}>{l}</button>
+        ))}
+        <input value={dataSearch} onChange={e=>{setDataSearch(e.target.value);setDataPage(0);}} placeholder="Search rows…" style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'5px 9px',fontSize:'11px',flex:1,minWidth:'160px'}}/>
+      </div>
+      <div style={{fontSize:'11px',color:'#a8a29e'}}>{filtered.length?('Showing '+(pg*PER+1)+'–'+(pg*PER+slice.length)+' of '+filtered.length+' rows'):'No rows match'}</div>
+      <div style={{overflowX:'auto',border:'0.5px solid #e7e5e4',borderRadius:'8px'}}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:'11px'}}>
+          <thead><tr style={{background:'#fafaf9',textAlign:'left'}}>{['Tour','Source','Day','City','Location / product','Themes'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+          <tbody>{slice.map((r,i)=>(
+            <tr key={i} style={{background:i%2?'#fafaf9':'#fff'}}>
+              <td style={td}>{r.url?<a href={r.url} target="_blank" rel="noopener" style={{color:'#185FA5',textDecoration:'none'}}>{r.tour}</a>:r.tour}</td>
+              <td style={td}><span style={chip(r.type==='Board'?'board':'prod',{small:true})}>{r.source}</span></td>
+              <td style={td}>{r.day}</td><td style={td}>{r.city}</td>
+              <td style={Object.assign({},td,{color:'#0C447C',fontWeight:600})}>{r.location||r.products}</td>
+              <td style={Object.assign({},td,{color:'#57534e'})}>{r.themes}</td>
+            </tr>))}</tbody>
+        </table>
+      </div>
+      <div style={{display:'flex',gap:'8px',alignItems:'center',justifyContent:'flex-end'}}>
+        <button onClick={()=>setDataPage(Math.max(0,pg-1))} disabled={pg<=0} style={pagerBtn(pg>0)}>‹ Prev</button>
+        <span style={{fontSize:'11px',color:'#a8a29e'}}>Page {pg+1} of {pages}</span>
+        <button onClick={()=>setDataPage(Math.min(pages-1,pg+1))} disabled={pg>=pages-1} style={pagerBtn(pg<pages-1)}>Next ›</button>
+      </div>
+    </div>);
+  }
+
+  function renderSaved(){
+    if(savedLoading) return <div style={empty}>Loading…</div>;
+    if(!saved.length) return <div style={empty}>No saved itineraries yet. Build one and click <b>Save</b>.</div>;
+    return (
+    <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}}>
+      {saved.slice().reverse().map(sv=>{
+        const allThemes=new Set(); (sv.days||[]).forEach(d=>(d.themes||[]).forEach(t=>allThemes.add(t)));
+        return (
+        <div key={sv.id} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:'200px'}}>
+            <div style={{fontSize:'13px',fontWeight:600}}>{sv.name}</div>
+            <div style={{fontSize:'11px',color:'#57534e',marginTop:'2px'}}>{(catalog[sv.state]||{}).name||sv.state} · {sv.duration} days · saved {(sv.savedAt||'').replace('T',' @ ')}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'5px',marginTop:'6px'}}>{[...allThemes].slice(0,6).map(t=><span key={t} style={chip('theme',{small:true})}>{t}</span>)}</div>
+          </div>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={()=>loadSavedItinerary(sv)} style={primaryBtn}>Load</button>
+            <button onClick={()=>deleteSaved(sv.id)} style={dangerBtn}>Delete</button>
+          </div>
+        </div>);
+      })}
+    </div>);
+  }
+
+  const viewBody = {builder:renderBuilder, templates:renderTemplates, insights:renderInsights, gap:renderGap, data:renderData, saved:renderSaved, analytics:()=><AnalyticsView catalog={catalog} THEMES={THEMES}/>, market:()=><MarketIntelligenceView
+        catalog={catalog} allTemplatesGlobal={allTemplatesGlobal}
+        onGoToTemplate={(name,source)=>{ setTplExactMatch({name, source}); setTplSearch(''); setView('templates'); }}
+        onGoToTemplateFiltered={({state, sourceType})=>{
+          setTplExactMatch(null); setTplSearch('');
+          setTplStateFilter(state? [state] : []);
+          setTplSourceFilter(sourceType || 'all');
+          setView('templates');
+        }}
+        onGenerateDraft={generateDraftFromInsight}/>}[view];
+
+  return (
+  <div style={{display:'flex',width:'100%',height:'100vh',border:'0.5px solid #e7e5e4',overflow:'hidden',background:'#fafaf9'}}>
+    {/* sidebar */}
+    <div style={{width:'196px',minWidth:'196px',background:'#fff',borderRight:'0.5px solid #e7e5e4',padding:'14px 12px',display:'flex',flexDirection:'column',gap:'12px',overflowY:'auto'}}>
+      <div style={{fontSize:'14px',fontWeight:600,display:'flex',alignItems:'center',gap:'6px'}}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg> Tour Builder
+      </div>
+      <hr style={hr}/>
+      <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+        {NAV.map(([k,l])=><div key={k} onClick={()=>setView(k)} style={navStyle(k)}>{l}</div>)}
+      </div>
+      <hr style={hr}/>
+      <div style={{padding:'4px 0'}}><Label>Tours in dataset</Label><div style={{fontSize:'18px',fontWeight:600}}>{totalTours.toLocaleString()}</div></div>
+      <div style={{padding:'4px 0'}}><Label>Distinct products</Label><div style={{fontSize:'18px',fontWeight:600}}>{distinctProducts.toLocaleString()}</div></div>
+      <div style={{padding:'4px 0'}}><Label>Day rows</Label><div style={{fontSize:'18px',fontWeight:600}}>{totalRows.toLocaleString()}</div></div>
+    </div>
+
+    {/* main */}
+    <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+      <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+        <div>
+          <div style={{fontSize:'16px',fontWeight:600}}>{topTitle}</div>
+          <div style={{fontSize:'11px',color:'#57534e',marginTop:'1px'}}>{topSub}</div>
+          {view==='builder'? <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'2px'}}>Start from Opportunities for AI-assisted drafts</div>:null}
+        </div>
+        <div style={{display:'flex',gap:'8px'}}>
+          {view==='builder'? <button onClick={clearAll} style={{padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'transparent',color:'#78716c',border:'0.5px solid #d6d3d1',cursor:'pointer'}}>Clear all</button>:null}
+          {view==='builder'? <button onClick={saveItinerary} style={primaryBtn}>Save</button>:null}
+          <button onClick={exportWord} style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 11px',borderRadius:'6px',fontSize:'12px',background:TINT,color:'#27500A',border:'0.5px solid #C0DD97',cursor:'pointer'}}>↓ Export</button>
+        </div>
+      </div>
+      {view==='builder' && draftBanner && (
+        <div style={{background:TINT,borderBottom:'0.5px solid #C0DD97',padding:'8px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+          <div style={{fontSize:'12px',color:'#27500A'}}>
+            Draft generated for {draftBanner.market} market · {draftBanner.state} · {draftBanner.days} days · Based on board data
+          </div>
+          <div onClick={()=>setDraftBanner(null)} title="Dismiss" style={{cursor:'pointer',color:'#27500A',fontSize:'14px',lineHeight:1,padding:'0 2px'}}>×</div>
+        </div>
+      )}
+      {view==='builder' && (
+        <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'10px 16px',display:'flex',flexDirection:'column',gap:'8px'}}>
+          {/* controls row */}
+          <div style={{display:'flex',gap:'10px',alignItems:'flex-end',flexWrap:'wrap'}}>
+            <div style={{display:'flex',flexDirection:'column',gap:'4px',flex:1,minWidth:'200px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'8px'}}>
+                <Label>Tour name</Label>
+                {tourUrl ? <a href={tourUrl} target="_blank" rel="noopener" style={{fontSize:'11px',color:'#185FA5',textDecoration:'none',fontWeight:500}}>View original ↗</a> : null}
+              </div>
+              <input value={tourName} onChange={e=>setTourName(e.target.value)} placeholder="Name your itinerary..." style={{border:'0.5px solid #d6d3d1',borderRadius:'6px',padding:'6px 10px',fontSize:'12px',background:'#fff',width:'100%'}}/>
+            </div>
+          </div>
+          {/* KPI tiles */}
+          <div style={{display:'grid',gridTemplateColumns:tourSource?'repeat(5,1fr)':'repeat(4,1fr)',gap:'8px'}}>
+            <Card><Label>Days planned</Label><div style={metricNum}>{daysPlanned}</div><div style={metricSub}>of {duration}</div></Card>
+            <Card><Label>Products added</Label><div style={metricNum}>{productsAdded}</div></Card>
+            <Card><Label>Themes covered</Label><div style={metricNum}>{themeSet.size}</div><div style={metricSub}>of {THEMES.length}</div></Card>
+            <Card><Label>Board alignment</Label><div style={metricNum}>{boardAlignment}%</div><div style={metricSub}>products featured by board</div></Card>
+            {tourSource && <Card><Label>Source</Label><div style={{fontSize:'13px',fontWeight:600,color:'#185FA5',marginTop:'2px',wordBreak:'break-word'}}>{tourSource}</div></Card>}
+          </div>
+        </div>
+      )}
+      {view==='builder' && (
+        <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'0 16px',display:'flex',gap:'4px'}}>
+          {[['build','Build'],['consumer','Consumer Analysis']].map(([k,l])=>(
+            <div key={k} onClick={()=>setBuilderSubTab(k)}
+              style={{padding:'9px 12px',fontSize:'12px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',
+                borderBottom:'2px solid '+(builderSubTab===k?GREEN:'transparent'),color:builderSubTab===k?'#27500A':'#57534e'}}>
+              {l}
+              {k==='consumer' && daysPlanned>=2 ? <span title="Enough data for meaningful scores" style={{width:'6px',height:'6px',borderRadius:'50%',background:ACCENT,display:'inline-block'}}/> : null}
+            </div>
+          ))}
+        </div>
+      )}
+      {view==='builder' && draftBanner && (
+        <div style={{padding:'6px 16px',fontSize:'10px',color:'#a8a29e'}}>Opportunities → Builder</div>
+      )}
+      {view==='builder'
+        ? (builderSubTab==='consumer'
+            ? <div style={{flex:1,overflow:'auto'}}><ConsumerAnalysisView days={days} stateKey={stateKey}/></div>
+            : <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+                <div style={{flex:'1 1 45%',minWidth:0,overflowY:'auto',padding:'14px 16px',display:'flex',flexDirection:'column',gap:'8px'}}>{renderBuilderDays()}</div>
+                <div style={{flex:'1 1 55%',minWidth:'420px',overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'12px',borderLeft:'0.5px solid #e7e5e4',background:'#fafaf9'}}>{renderBuilderPanel()}</div>
+              </div>)
+        : <div style={{flex:1,overflow:'auto'}}>{viewBody()}</div>
+      }
+    </div>
+
+    {toast? <div style={{position:'fixed',bottom:'24px',left:'50%',background:'#1c1917',color:'#fff',padding:'10px 16px',borderRadius:'8px',fontSize:'12px',boxShadow:'0 6px 24px rgba(0,0,0,.2)',animation:'toastIn .2s ease',zIndex:50}}>{toast}</div>:null}
+    {renderTplPreviewModal()}
+    {renderTplConfirmModal()}
+  </div>);
+}
+
+// shared style fragments
+const stepBtn   = {width:'26px',height:'26px',border:'0.5px solid #d6d3d1',borderRadius:'6px',background:'#f5f5f4',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',color:'#57534e',cursor:'pointer',userSelect:'none'};
+const metricNum = {fontSize:'20px',fontWeight:600};
+const metricSub = {fontSize:'10px',color:'#a8a29e',marginTop:'1px'};
+const hr        = {border:'none',borderTop:'0.5px solid #e7e5e4',margin:'4px 0',width:'100%'};
+const empty     = {padding:'40px 16px',textAlign:'center',color:'#a8a29e',fontSize:'13px'};
+const th        = {padding:'8px 10px',fontWeight:600,color:'#57534e',borderBottom:'0.5px solid #e7e5e4',whiteSpace:'nowrap'};
+const td        = {padding:'7px 10px',borderBottom:'0.5px solid #f0efed',verticalAlign:'top'};
+const primaryBtn= {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:GREEN,color:'#fff',border:'none',cursor:'pointer'};
+const ghostBtn  = {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'#fff',color:'#57534e',border:'0.5px solid #d6d3d1',cursor:'pointer'};
+const dangerBtn = {padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'#FBE9E7',color:'#8C2F1E',border:'0.5px solid #F3B5A7',cursor:'pointer'};
+const pagerBtn  = (on)=>({padding:'5px 11px',fontSize:'12px',fontWeight:600,borderRadius:'6px',border:'0.5px solid #d6d3d1',background:on?'#fff':'#f5f5f4',color:on?'#1c1917':'#cbc9c6',cursor:on?'pointer':'not-allowed'});
+
+// ---- boot ----
+function boot(){
+  const root = document.getElementById('root');
+  if (!window.DATA_MODULE){
+    root.innerHTML = '<div style="padding:40px;color:#8C2F1E">data.js failed to load (window.DATA_MODULE missing).</div>';
+    return;
+  }
+  ReactDOM.createRoot(root).render(<App/>);
+}
+boot();
+</script>
+</body>
+</html>
