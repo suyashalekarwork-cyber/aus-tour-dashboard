@@ -2,11 +2,18 @@
 
 This folder is where new data gets uploaded. The web app never reads these
 files directly — `import.php` loads them into MySQL, and the app serves from
-the database. To publish an update:
+the database.
+
+**Easiest way to publish an update:** open
+`https://<domain>/upload.php`, enter the import key (ask the web team),
+select your JSON files, and submit — it saves them here and runs the import
+in one go, showing the import log.
+
+Manual alternative:
 
 1. Overwrite the file(s) here (File Manager or FTP).
-2. Open `https://<domain>/import.php?key=<import key>` (ask the web team for
-   the key). It prints what it imported; errors leave the previous data live.
+2. Open `https://<domain>/import.php?key=<import key>`. It prints what it
+   imported; errors leave the previous data live.
 
 ## The five files
 

@@ -103,13 +103,14 @@ This protects everything: page, data, and API.
 
 ## Routine maintenance
 
-**Data updates from the data team.** To publish a new dataset:
-
-1. Upload the new files into the `imports/` folder, overwriting the old ones
-   (File Manager or FTP).
-2. Open `import.php?key=YOUR_IMPORT_KEY`.
-3. Done — the cache regenerates automatically and every user gets the new
-   data on their next page load.
+**Data updates from the data team.** Easiest path: open
+`https://yourdomain.com.au/upload.php`, enter the import key, select the JSON
+files, submit — it saves them into `imports/` and runs the import in one go,
+showing the import log. Files are uploaded in 1 MB chunks, so the server's
+PHP upload limits don't matter even for the ~19 MB `data.json`.
+(Manual alternative: upload into `imports/` via File Manager/FTP, then open
+`import.php?key=YOUR_IMPORT_KEY`.) Either way the cache regenerates
+automatically and every user gets the new data on their next page load.
 
 **Preferred delivery format — plain JSON, one file per structure.** Each file
 is a single `json.dump` from the data team's Python pipeline:
@@ -172,6 +173,7 @@ phpMyAdmin → Export, or include the database in your cPanel backup schedule.
 | `api.php` | itineraries CRUD (MySQL) + AI prediction proxy |
 | `dataset.php` | serves data/market/tokens datasets from MySQL (ETag + cache) |
 | `import.php` | loads the data team's files from `imports/` into MySQL (stays on server, key-protected) |
+| `upload.php` | browser page for the data team: chunked upload of JSON files + run the import (key-protected) |
 | `config.php` | DB credentials, import key, proxy settings |
 | `imports/` | the data team's JSON files (blocked from web access) — `imports/README.md` documents the delivery format for the data team |
 | `cache/` | generated dataset JS, one per version (blocked from web access) |
