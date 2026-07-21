@@ -1,0 +1,38 @@
+{
+  "elapsed": 92.25623035430908,
+  "result": {
+    "predictions": [
+      {
+        "market": "India",
+        "score": 42,
+        "label": "Moderate fit",
+        "reason": "Historical interest in state visits and similar durations."
+      },
+      {
+        "market": "Singapore",
+        "score": 28,
+        "label": "Low fit",
+        "reason": "Shorter duration than current offerings and fewer state visit tours."
+      },
+      {
+        "market": "UK",
+        "score": 18,
+        "label": "Low fit",
+        "reason": "Not aligned with UK market's preferences for longer durations and more tour options."
+      },
+      {
+        "market": "New Zealand",
+        "score": 8,
+        "label": "Low fit",
+        "reason": "Competition from local offerings in similar destinations."
+      },
+      {
+        "market": "Australia",
+        "score": 4,
+        "label": "Low fit",
+        "reason": "Potential overlap with existing tours and shorter duration compared to average."
+      }
+    ],
+    "summary": "The itinerary has a moderate appeal to the Indian market due to historical preferences but is likely to have low appeal in other markets given their distinct preferences for longer durations and more tour options."
+  }
+}

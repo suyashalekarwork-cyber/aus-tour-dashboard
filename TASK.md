@@ -84,6 +84,23 @@
 
 ---
 
+## 🚧 In progress — AI-assisted gap → draft itinerary (not committed)
+
+- [ ] **Gap-card enrichment** in Market Intelligence — each gap/opportunity card now
+  computes (from `window.MARKET_DATA` + templates): products boards promote that the
+  market's operators don't sell in that state, a recommended duration range (max of
+  market avg / board median), and the best-matching existing template by board
+  alignment %.
+- [ ] **"Generate draft itinerary" button** on gap cards, wired to a new local
+  `/api/predict` endpoint in `app/server/server.py` that calls a local Ollama model
+  (`qwen2.5:7b`) to score market fit for a drafted itinerary. Falls back to
+  `{error: 'Ollama not available'}` if Ollama isn't running — needs a UI state for
+  that fallback before this ships.
+- [ ] Not yet verified end-to-end or committed — `app/frontend/builder.html` and
+  `app/server/server.py` have uncommitted changes for this.
+
+---
+
 ## ❓ Open questions / discussion (answer first, no code yet)
 
 **On the proposed two-phase approach** — the suggestion was:

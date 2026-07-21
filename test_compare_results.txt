@@ -1,0 +1,153 @@
+Comparing ChatGPT proxy vs Ollama (qwen2.5:7b) across 5 test cases
+
+════════════════════════════════════════════════════════════
+Test 1 — TAS nature circuit
+════════════════════════════════════════════════════════════
+
+Running proxy...
+Running Ollama...
+
+                   PROXY          OLLAMA         
+Response time:     50.9s          79.4s          
+JSON valid:        Yes            Yes            
+Scores sum 100:    Yes            Yes            
+Top market:        New Zealand    India          
+
+PROXY predictions:
+  India        26%   — Low fit        — "Duration aligns well and the market is large, but TAS has minimal presence in Indian portfolios and lacks NSW icons, so it is an untapped yet niche play."
+  Singapore    10%   — Low fit        — "At 8 days it exceeds Singapore's typical trip length and TAS is rarely featured, limiting appeal to nature-focused niches."
+  UK           20%   — Low fit        — "Nature and convict heritage resonate, yet UK buyers favor longer, multi-state Australia trips, making an 8-day TAS-only tour more of an add-on module."
+  New Zealand  38%   — Moderate fit   — "High historical TAS uptake and a nature-heavy 8-day format match NZ preferences for compact, outdoorsy breaks across the Tasman."
+  Australia    6%    — Low fit        — "Domestic supply already offers many similar TAS trips, so incremental demand for an inbound operator is limited despite strong product-market fit."
+Summary: "Lead with New Zealand where TAS interest and format fit are strongest, and pilot with select India partners as an untapped opportunity. To broaden appeal, consider optional gateways or bolt-ons that connect TAS with NSW/VIC to capture UK and Singapore demand patterns."
+
+OLLAMA predictions:
+  India        42%   — Moderate fit   — "Matches state visits focus and duration is similar"
+  Singapore    28%   — Low fit        — "Shorter duration than average Singapore tours"
+  UK           18%   — Low fit        — "Focus on state visits rather than UK preferences"
+  New Zealand  8%    — Low fit        — "Similar product mix but shorter duration"
+  Australia    4%    — Low fit        — "Overlapping product mix and longer duration"
+Summary: "The itinerary has moderate appeal to India due to state visit focus and similar duration. It may struggle in other markets given the specific Tasmanian focus and potential overlap with existing offerings."
+════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
+Test 2 — NSW classic
+════════════════════════════════════════════════════════════
+
+Running proxy...
+Running Ollama...
+
+                   PROXY          OLLAMA         
+Response time:     29.9s          58.2s          
+JSON valid:        Yes            Yes            
+Scores sum 100:    Yes            Yes            
+Top market:        India          India          
+
+PROXY predictions:
+  India        48%   — Moderate fit   — "High existing NSW focus and iconic Sydney highlights fit first-time Indian travellers, with a 10-day length close to their typical 8–9 day tours."
+  Singapore    22%   — Low fit        — "Strong familiarity with NSW but the 10-day duration exceeds the market’s typical 6-day trips, risking price/time resistance."
+  UK           20%   — Low fit        — "UK travelers take longer, multi-state holidays, so a NSW-only 10-day itinerary may feel limited despite the appeal of Sydney icons."
+  New Zealand  6%    — Low fit        — "Kiwis favor shorter, flexible breaks and show little NSW focus in current product, making a 10-day NSW trip a stretch."
+  Australia    4%    — Low fit        — "Domestic travelers already know NSW and often DIY shorter breaks, reducing interest in a guided 10-day NSW itinerary."
+Summary: "Prioritize India for distribution and pricing, as the NSW focus and near-fit duration align well with current Indian operator product. To unlock more demand, offer a 6–7 day cut-down for Singapore and consider a multi-state extension for the UK market."
+
+OLLAMA predictions:
+  India        42%   — Moderate fit   — "matches NSW focus and longer duration"
+  Singapore    28%   — Low fit        — "shorter average tour duration in India"
+  UK           18%   — Low fit        — "UK prefers state visits over specific places"
+  New Zealand  8%    — Low fit        — "overlap in destinations makes it less appealing"
+  Australia    4%    — Low fit        — "local market has similar offerings"
+Summary: "The itinerary is moderately fitting for the Indian market but may struggle with other markets due to overlapping destinations and differing preferences."
+════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
+Test 3 — WA remote
+════════════════════════════════════════════════════════════
+
+Running proxy...
+Running Ollama...
+
+                   PROXY          OLLAMA         
+Response time:     52.8s          62.5s          
+JSON valid:        Yes            Yes            
+Scores sum 100:    Yes            Yes            
+Top market:        India          India          
+
+PROXY predictions:
+  India        41%   — Moderate fit   — "Duration aligns with India's 8-9 day norm and the wildlife/adventure mix (Ningaloo and Kimberley) can appeal to affluent segments, though WA awareness is currently low."
+  Singapore    22%   — Low fit        — "At nine days it's longer than Singapore's typical 6-day trips and requires regional hops, but whale-shark and beach appeal offers a niche."
+  UK           26%   — Low fit        — "UK travelers value rugged outback and coastal wilderness, making Kimberley/Ningaloo compelling, yet many UK itineraries run longer and multi-state so a WA-only 9-day trip limits uptake."
+  New Zealand  7%    — Low fit        — "Nature-forward and self-drive friendly fits Kiwi preferences, but the 9-day length exceeds their 7-day average and perceived similarity reduces urgency."
+  Australia    4%    — Low fit        — "High familiarity with WA and strong FIT preferences mean a packaged WA-only tour has limited incremental pull domestically."
+Summary: "Prioritise India as the lead market given duration fit and appetite for marquee nature/adventure, while nurturing UK and Singapore through wildlife-led positioning and education on WA logistics. Consider seasonal launch windows and optional extensions (e.g., Perth or NT) to lengthen for UK and shorten for Singapore to improve conversion."
+
+OLLAMA predictions:
+  India        42%   — Moderate fit   — "interest in state visits and unique locations"
+  Singapore    28%   — Low fit        — "focus on Australian states rather than national attractions"
+  UK           18%   — Low fit        — "interest in state visits and unique locations"
+  New Zealand  8%    — Low fit        — "focus on Australian states rather than national attractions"
+  Australia    4%    — Low fit        — "domestic market saturation"
+Summary: "The itinerary offers unique locations but doesn't align well with markets' current tour preferences or domestic saturation."
+════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
+Test 4 — NT outback
+════════════════════════════════════════════════════════════
+
+Running proxy...
+Running Ollama...
+
+                   PROXY          OLLAMA         
+Response time:     37.2s          73.5s          
+JSON valid:        Yes            Yes            
+Scores sum 100:    Yes            Yes            
+Top market:        India          India          
+
+PROXY predictions:
+  India        40%   — Moderate fit   — "Duration is close to their 8.4-day norm and iconic Uluru/Kakadu deliver bucket-list appeal, though NT is underrepresented in current Indian programs."
+  Singapore    26%   — Low fit        — "Nature and wildlife with easy access via Darwin suit short-haul travelers, but 7 days is slightly longer than their 6.1-day norm and NT remains niche in their mix."
+  UK           20%   — Low fit        — "Outback and Aboriginal culture resonate, yet UK operators average 12.2 days and usually package NT within longer multi-state trips."
+  New Zealand  9%    — Low fit        — "Exact 7-day duration fit and strong outdoors interest help, but small market volume and current focus on TAS suggest limited uptake for an NT-only tour."
+  Australia    5%    — Low fit        — "Domestic travelers have ample NT options and are less relevant to an inbound-focused product, limiting incremental operator demand."
+Summary: "Prioritize India as the primary test market and Singapore as the near-Asia access play, highlighting Uluru–Kakadu icons with flexible pacing. Add a Sydney/NSW extension or a 10–12 day version to improve conversion with UK/NZ operators who favor longer multi-state itineraries."
+
+OLLAMA predictions:
+  India        42%   — Moderate fit   — "interest in cultural and natural attractions but shorter tour duration"
+  Singapore    28%   — Low fit        — "shorter duration does not align with typical Singapore market preferences for longer stays"
+  UK           18%   — Low fit        — "UK market prefers longer state visits and may find this short on cultural offerings"
+  New Zealand  8%    — Low fit        — "similar landscapes in NZ may not attract New Zealanders to this itinerary"
+  Australia    4%    — Low fit        — "too similar to domestic offerings for Australians"
+Summary: "The itinerary has moderate appeal to the Indian market due to its mix of cultural and natural attractions. However, it may struggle with markets that prefer longer durations or have similar landscapes."
+════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
+Test 5 — VIC highlights
+════════════════════════════════════════════════════════════
+
+Running proxy...
+Running Ollama...
+
+                   PROXY          OLLAMA         
+Response time:     43.3s          57.5s          
+JSON valid:        Yes            Yes            
+Scores sum 100:    Yes            Yes            
+Top market:        India          India          
+
+PROXY predictions:
+  India        42%   — Moderate fit   — "Duration aligns with India's 8.4-day norm and VIC's city-wildlife mix (Melbourne, Great Ocean Road, penguins) offers a fresh alternative to their NSW-heavy programs."
+  Singapore    28%   — Low fit        — "This short-haul market favors 4-6 day breaks, so an 8-day single-state trip may feel long despite the appeal of Melbourne, penguins and wineries."
+  UK           18%   — Low fit        — "UK travelers typically book 12+ day multi-state tours, making an 8-day VIC-only product feel too narrow even though nature and wine are compelling."
+  New Zealand  8%    — Low fit        — "The small NZ market skews to self-drive and shorter hops (avg 7 days), so a packaged 8-day VIC highlights tour will have limited uptake."
+  Australia    4%    — Low fit        — "Domestic travelers have abundant VIC self-drive options and familiarity, so a packaged 8-day highlights tour offers low incremental value."
+Summary: "Prioritize India, where the 8-day VIC mix matches typical trip length and fills a gap versus their NSW-heavy portfolios. Offer a 5-6 day cut for Singapore and a 12-14 day VIC+NSW/QLD extension for the UK, keeping NZ and domestic as opportunistic add-ons."
+
+OLLAMA predictions:
+  India        42%   — Moderate fit   — "Historical interest in state visits and city tours."
+  Singapore    28%   — Low fit        — "Shorter duration than average for Singaporean tourists."
+  UK           18%   — Low fit        — "Few state visits and longer duration than average."
+  New Zealand  8%    — Low fit        — "Shorter duration and overlaps with similar attractions."
+  Australia    4%    — Low fit        — "Local market with more diverse offerings available."
+Summary: "The itinerary has a moderate appeal to the Indian market but is less suitable for other markets due to duration and product mix differences."
+════════════════════════════════════════════════════════════
+
+All tests complete. Results saved to test_compare_results.txt

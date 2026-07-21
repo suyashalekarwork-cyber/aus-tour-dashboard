@@ -190,5 +190,49 @@ are the signal; exclude hotels; sequential day numbering.
   `HIDDEN_TABS` array (near the `NAV` definition) — add a tab's key there to hide it from
   the sidebar while keeping its code and data intact for later.
 
+## AI prediction (`app/server/server.py` `/api/predict`) gotchas
+
+- Proxy is primary, Ollama (`qwen2.5:7b`, localhost:11434) is fallback — keep both paths
+  working when editing `_build_predict_prompt`.
+- The n8n proxy sits behind Cloudflare, which blocks Python's default urllib User-Agent
+  (HTTP 403 / code 1010) — `PROXY_HEADERS` must keep a browser-like `User-Agent`.
+- Large multi-state prompts can time out — `_build_predict_prompt` filters `market_data`/
+  `board_data` down to only the states present in the itinerary's `regions` array; don't
+  reintroduce unfiltered state data.
+- Windows console is cp1252 by default and crashes on box-drawing/em-dash chars in
+  `print()` — call `sys.stdout.reconfigure(encoding='utf-8')` at the top of any script
+  that prints them.
+- Backgrounded `python server.py > log.txt` hides `print()` output until buffer flush —
+  launch with `PYTHONUNBUFFERED=1 python -u server.py` when tailing logs live.
+- To restart the server: find the PID on port 8765 (`netstat -ano | grep 8765 | grep
+  LISTENING`) then `taskkill //F //PID <pid> //T`.
+
+## Gemini extraction experiment (`webscraping/gemini_extraction/`)
+
+- Standalone test harness comparing Gemini-based place/venue/experience extraction against
+  the old keyword-based `place_tags` column — not part of the main pipeline, no code depends on it.
+- `phase1_test/`, `phase2/{input,output,csv}/` hold hand-built batch `.txt` files (tour text fed
+  to Gemini) and the resulting `.json`/`.csv` outputs. `phase2/qa_dashboard.py` is a Streamlit QA
+  view over the results (`streamlit run webscraping/gemini_extraction/phase2/qa_dashboard.py`).
+- Gemini output JSON has no `source` field — resolve it via `tour_url` lookup against the raw
+  `itineraries.json` files in `webscraping/<source>/data/latest/`, not by guessing from filenames.
+- **Raw JSON shape varies by source** — check for all of: `days`, `blocks`, `itinerary` keys on
+  the tour dict, or (if the top-level list has no tour wrapper) a flat list of day dicts implying
+  a single tour. Scripts that only check for `days` will silently undercount several sources.
+- Old `place_tags` (keyword-based) is often noisier than it looks: duplicate/near-duplicate
+  entries, encoding-corrupted tokens (`�`), generic non-place words (Outback, tour operator
+  brand names), and origin-city noise pulled from marketing boilerplate (e.g. Indian departure
+  cities on Australia tours). Don't assume a longer old tag list means better extraction.
+
+## Windows/bash gotchas
+
+- Multi-line or backslash-heavy Python via `bash -c "python -c '...'"` breaks on quoting
+  (`SyntaxError: unterminated string literal`). Write the script to a `.py` file with the
+  Write tool and run it normally instead.
+- Streamlit: `st.dataframe`'s `column_config` (e.g. `LinkColumn`) and a pandas `.style.apply()`
+  Styler can be passed together in the same call — don't sacrifice one for the other.
+- Streamlit `LinkColumn` needs the full, untruncated URL as the cell value to render as a
+  clickable link — truncating the string for display breaks the link.
+
 
 

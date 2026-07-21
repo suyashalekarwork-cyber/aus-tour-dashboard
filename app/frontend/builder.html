@@ -24,6 +24,7 @@
   .ca-source-chip-wrap:hover .ca-source-info-btn{opacity:1}
   .ca-source-info-btn:hover{color:#57534e}
   .ca-source-info-btn.is-open{opacity:1}
+  .ca-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 </style>
 </head>
 <body>
@@ -440,7 +441,7 @@ function loadMIFilterState(){
   } catch(e) { return null; }
 }
 
-function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
+function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered, onGenerateDraft, catalog, allTemplatesGlobal}){
   const allTours = window.MARKET_DATA || [];
   const restored = useMemo(()=>loadMIFilterState(), []);
 
@@ -800,6 +801,7 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
       line1:`${c.market} operators: 0 tours`,
       line2:`Boards promote ${c.state} in ${c.boardN} tours — zero competition`,
       action:{label:`Start a ${c.state} tour`, state:c.state, sourceType:'Board'},
+      market:c.market, state:c.state,
     }));
     cards.gap.forEach(c=>out.push({
       id:'gap|'+c.market+'|'+c.state, color:RED, icon:'▲',
@@ -807,6 +809,7 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
       line1:`${c.market} operators: ${c.compN} tour${c.compN===1?'':'s'} in ${c.state}`,
       line2:`Tourism boards: ${c.boardN} tours in ${c.state} — high board backing`,
       action:{label:`Explore ${c.state} templates`, state:c.state, sourceType:'Board'},
+      market:c.market, state:c.state,
     }));
     cards.duration.forEach(c=>out.push({
       id:'duration|'+c.market, color:AMBER, icon:'◐',
@@ -832,6 +835,64 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
 
     return out.slice(0,5);
   }, [filtered, marketFilter]);
+
+  // 3a — per-card enrichment: missing products, recommended duration, best template match.
+  // Computed from window.MARKET_DATA (board vs competitor tours for the card's market+state)
+  // and allTemplatesGlobal (for the highest board-alignment template touching that state).
+  function cardEnrichment(market, state){
+    if (!market || !state) return null;
+    const boardTours = allTours.filter(t=>t.source_type==='Board' && (t.states||[t.state]).includes(state));
+    const compTours   = allTours.filter(t=>t.source_type==='Competitor' && t.market===market && (t.states||[t.state]).includes(state));
+
+    // top products boards push in this state, that this market's operators don't sell here
+    const boardProductCount = new Map();
+    boardTours.forEach(t=>(t.products||[]).forEach(p=>boardProductCount.set(p, (boardProductCount.get(p)||0)+1)));
+    const compProductSet = new Set(compTours.flatMap(t=>t.products||[]));
+    const missingProductsAll = [...boardProductCount.entries()]
+      .filter(([p])=>!compProductSet.has(p))
+      .sort((a,b)=>b[1]-a[1])
+      .map(([p])=>p);
+    const missingProducts = missingProductsAll.slice(0,3);
+
+    // recommended duration = max(this market's overall avg duration, board median duration for this state).
+    // Median (not mean) of board tours avoids short outlier board itineraries pulling the number down;
+    // the market-avg floor keeps the recommendation from undershooting what the market actually sells.
+    const durs = boardTours.map(t=>t.total_days||0).filter(Boolean).sort((a,b)=>a-b);
+    const boardMedian = durs.length
+      ? (durs.length%2 ? durs[(durs.length-1)/2] : (durs[durs.length/2-1]+durs[durs.length/2])/2)
+      : 0;
+    const marketDurs = allTours.filter(t=>t.source_type==='Competitor' && t.market===market).map(t=>t.total_days||0).filter(Boolean);
+    const marketAvg = marketDurs.length? marketDurs.reduce((a,b)=>a+b,0)/marketDurs.length : 0;
+    const avgDur = Math.max(marketAvg, boardMedian);
+    const durLow = Math.round(avgDur)-1, durHigh = Math.round(avgDur)+1;
+
+    // best template touching this state, by board alignment %
+    const prodInfoFor = (s,name)=>{ const c=catalog && catalog[s]; return (c&&c.products) ? c.products[name] : null; };
+    let bestTemplate = null, bestPct = -1;
+    (allTemplatesGlobal||[]).forEach(t=>{
+      if (!(t.states||[]).includes(state)) return;
+      let board=0, resolved=0;
+      (t.days||[]).forEach(d=>(d.places||[]).forEach(p=>{ const info=prodInfoFor(d.state,p); if(info){ resolved++; if(info.board) board++; } }));
+      if (!resolved) return;
+      const pct = Math.round(board/resolved*100);
+      if (pct > bestPct){ bestPct = pct; bestTemplate = t; }
+    });
+
+    // most common Day-1 (arrival) city among board templates touching this state
+    const arrivalCityCount = new Map();
+    (allTemplatesGlobal||[]).forEach(t=>{
+      if (t.type!=='Board' || !(t.states||[]).includes(state)) return;
+      const c = t.days && t.days[0] && t.days[0].city;
+      if (c) arrivalCityCount.set(c, (arrivalCityCount.get(c)||0)+1);
+    });
+    const arrivalCity = [...arrivalCityCount.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+    return {
+      missingProducts, missingProductsAll, avgDur: Math.round(avgDur), durLow, durHigh,
+      bestTemplate, bestPct: bestTemplate? bestPct : null,
+      arrivalCity: arrivalCity? arrivalCity[0] : (state||''),
+    };
+  }
 
   const MKT_COLORS = ['#185FA5','#1D9E75','#E8732A','#9333EA','#0D9488','#DC2626','#F59E0B'];
   const COMP_COL  = '#E8732A';
@@ -934,7 +995,9 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
             id:'none', color:'#78716C', icon:'—',
             headline:'No significant gaps found for this filter combination',
             line1:'', line2:'', action:null,
-          }]).map(c=>(
+          }]).map(c=>{
+            const enr = c.market && c.state ? cardEnrichment(c.market, c.state) : null;
+            return (
             <div key={c.id} style={{
               flex:'1 1 260px', minWidth:'240px', maxWidth:'320px',
               background:'#fff', border:'0.5px solid #e7e5e4', borderLeft:`4px solid ${c.color}`,
@@ -948,7 +1011,37 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
               </div>
               {c.line1? <div style={{fontSize:'12px',color:'#78716C',marginLeft:'21px'}}>{c.line1}</div>:null}
               {c.line2? <div style={{fontSize:'12px',color:'#78716C',marginLeft:'21px'}}>{c.line2}</div>:null}
-              {c.action? (
+
+              {enr && enr.missingProducts.length? (
+                <div style={{marginLeft:'21px',marginTop:'6px'}}>
+                  <div style={{fontSize:'10px',color:'#78716C',marginBottom:'4px'}}>Boards promote — competitors missing:</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
+                    {enr.missingProducts.map(p=><span key={p} style={chip('board',{small:true})}>{p}</span>)}
+                  </div>
+                </div>
+              ):null}
+
+              {enr && enr.avgDur? (
+                <div style={{marginLeft:'21px',marginTop:'6px',fontSize:'11px',color:'#57534e'}}>
+                  Recommended duration: <b>{enr.durLow}–{enr.durHigh} days</b>
+                </div>
+              ):null}
+
+              {enr && enr.bestTemplate? (
+                <div style={{marginLeft:'21px',marginTop:'2px',fontSize:'11px',color:'#57534e'}}>
+                  Best starting point: <b>{enr.bestTemplate.name}</b> ({enr.bestPct}% board alignment)
+                </div>
+              ):null}
+
+              {enr? (
+                <div style={{marginTop:'10px'}}>
+                  <button
+                    onClick={()=>onGenerateDraft && onGenerateDraft(c.market, c.state, enr)}
+                    style={{...primaryBtn, width:'100%', padding:'10px 14px', fontSize:'13px'}}>
+                    Generate draft itinerary →
+                  </button>
+                </div>
+              ) : c.action ? (
                 <div style={{marginLeft:'21px',marginTop:'4px'}}>
                   <button
                     onClick={()=>onGoToTemplateFiltered && onGoToTemplateFiltered({state:c.action.state, sourceType:c.action.sourceType})}
@@ -958,7 +1051,8 @@ function MarketIntelligenceView({onGoToTemplate, onGoToTemplateFiltered}){
                 </div>
               ):null}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -1266,13 +1360,308 @@ function caScoreQuartileLabel(pct){
   return {label:'None', color:'#cbc9c6'};
 }
 
+// Coverage-table label — distinct thresholds from caScoreQuartileLabel, used only
+// by the "Current market coverage" facts table (Historical fit's replacement).
+function caCoverageLabel(pct){
+  // pct is a 0..1 share of that market's tours touching the state.
+  if (pct <= 0) return {label:'None', color:'#a8a29e'};
+  if (pct <= 0.05) return {label:'Rare', color:'#a8a29e'};
+  if (pct <= 0.20) return {label:'Some', color:'#D97706'};
+  return {label:'Common', color:'#1D9E75'};
+}
+
+// Market summary for the AI prediction request: total tours, state visit
+// counts, and avg tour duration per market — all derived from window.MARKET_DATA.
+function buildAIMarketSummary(){
+  const allTours = window.MARKET_DATA || [];
+  const summary = {};
+  CA_MARKETS.forEach(market=>{
+    const tours = allTours.filter(t=>t.market===market);
+    const stateVisits = {};
+    let daySum = 0, dayCount = 0;
+    tours.forEach(t=>{
+      const states = new Set(t.states && t.states.length ? t.states : (t.state ? [t.state] : []));
+      states.forEach(s=>{ stateVisits[s] = (stateVisits[s]||0) + 1; });
+      if (t.total_days){ daySum += t.total_days; dayCount++; }
+    });
+    summary[market] = {
+      totalTours: tours.length,
+      stateVisits,
+      avgDays: dayCount ? Math.round((daySum/dayCount)*10)/10 : 0,
+    };
+  });
+  return summary;
+}
+
+// Board (tourism board) promotion data for the AI prediction request: per state,
+// how many board tours visit it and the 5 most-promoted products in those tours —
+// used to flag first-mover opportunities where boards push hard but competitors don't sell yet.
+function buildBoardDataSummary(){
+  const allTours = window.MARKET_DATA || [];
+  const boardTours = allTours.filter(t=>t.source_type==='Board');
+  const byState = {};
+  boardTours.forEach(t=>{
+    const states = new Set(t.states && t.states.length ? t.states : (t.state ? [t.state] : []));
+    states.forEach(s=>{
+      if (!byState[s]) byState[s] = {tours: 0, productCount: new Map()};
+      byState[s].tours += 1;
+      (t.products||[]).forEach(p=>{
+        byState[s].productCount.set(p, (byState[s].productCount.get(p)||0)+1);
+      });
+    });
+  });
+  const summary = {};
+  Object.entries(byState).forEach(([state, info])=>{
+    const topProducts = [...info.productCount.entries()]
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,5)
+      .map(([p])=>p);
+    summary[state] = {boardTours: info.tours, topProducts};
+  });
+  return summary;
+}
+
+// Product name -> {state -> tour count} across all of window.MARKET_DATA, built once
+// per call. Used to infer which state a product most likely belongs to, for itineraries
+// that span multiple Australian states (the Builder session itself is single-state,
+// but a PM can still add products the catalog associates with a different state).
+function buildProductStateCounts(){
+  const allTours = window.MARKET_DATA || [];
+  const counts = {};
+  allTours.forEach(t=>{
+    const states = t.states && t.states.length ? t.states : (t.state ? [t.state] : []);
+    (t.products||[]).forEach(p=>{
+      if (!counts[p]) counts[p] = {};
+      states.forEach(s=>{ counts[p][s] = (counts[p][s]||0) + 1; });
+    });
+  });
+  return counts;
+}
+
+// Resolve a single product's most likely state: most common state across
+// window.MARKET_DATA tours containing it; ties and unknown products fall back
+// to the Builder's current stateKey.
+function resolveProductState(product, productStateCounts, fallbackState){
+  const counts = productStateCounts[product];
+  if (!counts) return {state: fallbackState, fellBack: true};
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if (!entries.length) return {state: fallbackState, fellBack: true};
+  const topCount = entries[0][1];
+  const tied = entries.filter(([,c])=>c===topCount);
+  if (tied.length > 1){
+    const tieMatch = tied.find(([s])=>s===fallbackState);
+    return {state: tieMatch ? tieMatch[0] : tied[0][0], fellBack: !tieMatch};
+  }
+  return {state: entries[0][0], fellBack: false};
+}
+
+// Groups the itinerary's days/products into per-state regions for the AI prediction
+// request. Single-state itineraries still return a one-item regions array (Step 2).
+// Logs the resolved payload (and which products fell back to stateKey) for QA.
+function buildRegionsFromItinerary(days, stateKey){
+  const productStateCounts = buildProductStateCounts();
+  const fallbacks = [];
+
+  const dayRegions = (days||[]).map(d=>{
+    const products = d.products || [];
+    if (!products.length && !((d.location||'').trim())) return null;
+    const stateVotes = {};
+    products.forEach(p=>{
+      const {state, fellBack} = resolveProductState(p, productStateCounts, stateKey);
+      stateVotes[state] = (stateVotes[state]||0) + 1;
+      if (fellBack) fallbacks.push(p);
+    });
+    const dayState = Object.keys(stateVotes).length
+      ? Object.entries(stateVotes).sort((a,b)=>b[1]-a[1])[0][0]
+      : stateKey;
+    return {state: dayState, products};
+  }).filter(Boolean);
+
+  const byState = {};
+  dayRegions.forEach(({state, products})=>{
+    if (!byState[state]) byState[state] = {days: 0, products: []};
+    byState[state].days += 1;
+    products.forEach(p=>{ if (!byState[state].products.includes(p)) byState[state].products.push(p); });
+  });
+
+  const regions = Object.entries(byState).map(([state, info])=>({
+    state, days: info.days, products: info.products,
+  }));
+  const total_days = regions.reduce((sum,r)=>sum+r.days, 0);
+
+  console.log('[AI prediction] regions payload:', {regions, total_days});
+  if (fallbacks.length){
+    console.log('[AI prediction] products with unknown state, fell back to', stateKey + ':', [...new Set(fallbacks)]);
+  }
+
+  return {regions, total_days};
+}
+
+const AI_PREDICTION_STORAGE_KEY = 'mi_ai_prediction';
+
+// Sorted, comma-separated snapshot of every product currently in the itinerary —
+// used to detect "has this itinerary changed enough to warrant re-analysis".
+function productFingerprint(products){
+  return [...(products||[])].sort().join(',');
+}
+
+// Count of products that differ between two fingerprints (added or removed),
+// used for the "2 or more products changed" re-analysis threshold.
+function fingerprintDiffCount(fpA, fpB){
+  const a = new Set((fpA||'').split(',').filter(Boolean));
+  const b = new Set((fpB||'').split(',').filter(Boolean));
+  let diff = 0;
+  a.forEach(x=>{ if(!b.has(x)) diff++; });
+  b.forEach(x=>{ if(!a.has(x)) diff++; });
+  return diff;
+}
+
 function ConsumerAnalysisView({days, stateKey}){
   const {scores, statesUsed, totalDaysWithLocation} = useMemo(()=>computeMarketFitScores(days, stateKey), [days, stateKey]);
   const operatorsByMarket = useMemo(()=>buildOperatorsByMarket(), []);
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult]   = useState(null);   // {predictions, summary}
+  const [aiError, setAiError]     = useState(false);
+  const [aiErrorMsg, setAiErrorMsg] = useState('');   // specific red error text (timeout/abort), separate from the generic Ollama-down message
+  const [aiProgress, setAiProgress] = useState(0);    // 0-100, fills over ~45s while waiting on the proxy/Ollama
+  const aiProgressTimer = useRef(null);
+  // Persists across clicks (not reset on re-render) so a second click can abort
+  // whatever request the first click started, and the 60s watchdog can abort itself.
+  const aiController = useRef(null);
+
+  const [savedPrediction, setSavedPrediction] = useState(null); // {fingerprint, predictions, summary, timestamp}
+
+  // Debug panel (Consumer Analysis AI prediction troubleshooting) — status text,
+  // live elapsed-time counter, raw response body, and HTTP status code.
+  const [debugVisible, setDebugVisible] = useState(true);
+  const [debugStatus, setDebugStatus] = useState('Idle');
+  const [debugElapsed, setDebugElapsed] = useState(0);
+  const [debugRaw, setDebugRaw] = useState('');
+  const [debugHttpStatus, setDebugHttpStatus] = useState(null);
+  const debugTimer = useRef(null);
+
+  // Load any saved prediction from localStorage once on mount — persists across
+  // page refresh and tab switching without re-calling the API.
+  useEffect(()=>{
+    try{
+      const raw = localStorage.getItem(AI_PREDICTION_STORAGE_KEY);
+      if (raw) setSavedPrediction(JSON.parse(raw));
+    } catch(e){}
+  }, []);
+
   const hasEnoughData = totalDaysWithLocation > 0;
   const sortedScores = [...scores].sort((a,b)=>b.score-a.score);
   const promoteMarkets = sortedScores.filter(s=>s.score >= 35);
+
+  const allProducts = (days||[]).flatMap(d=>d.products||[]);
+  const daysWithLocation = (days||[]).filter(d=>(d.location&&d.location.trim())||(d.products&&d.products.length)).length;
+  const currentFingerprint = productFingerprint(allProducts);
+
+  // States detected across the itinerary's products, for the subtitle/warning —
+  // same resolution logic as buildRegionsFromItinerary but without the console logging.
+  const detectedStates = useMemo(()=>{
+    const productStateCounts = buildProductStateCounts();
+    const set = new Set();
+    allProducts.forEach(p=>{ set.add(resolveProductState(p, productStateCounts, stateKey).state); });
+    if (!set.size && stateKey) set.add(stateKey);
+    return [...set];
+  }, [currentFingerprint, stateKey]);
+  const isMultiState = detectedStates.length > 1;
+
+  const meetsMinimums = allProducts.length >= 3 && daysWithLocation >= 2;
+  const changedSinceSaved = savedPrediction
+    ? fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint) >= 2
+    : true; // no saved prediction yet — nothing to compare against, so allow analysis
+  const canAnalyse = meetsMinimums && changedSinceSaved;
+
+  let analyseTooltip;
+  if (!meetsMinimums) analyseTooltip = 'Add at least 3 products and 2 days to analyse';
+  else if (!changedSinceSaved) analyseTooltip = savedPrediction ? 'No significant changes since last analysis' : undefined;
+  if (meetsMinimums && !changedSinceSaved && savedPrediction){
+    const diff = fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint);
+    analyseTooltip = diff > 0 ? `Add ${2-diff} more product${2-diff===1?'':'s'} since last analysis to re-analyse` : 'No significant changes since last analysis';
+  }
+
+  const showChangedBanner = !!savedPrediction && fingerprintDiffCount(currentFingerprint, savedPrediction.fingerprint) >= 2;
+
+  async function runAiPrediction(){
+    // A previous request is still in flight — abort it before starting a fresh one,
+    // so a second click can never pile up on top of a hung first click.
+    if (aiController.current) aiController.current.abort();
+    const controller = new AbortController();
+    aiController.current = controller;
+
+    setAiLoading(true); setAiError(false); setAiErrorMsg(''); setAiResult(null); setAiProgress(0);
+    setDebugStatus('Sending request to proxy...'); setDebugElapsed(0); setDebugRaw(''); setDebugHttpStatus(null);
+    const startedAt = Date.now();
+    aiProgressTimer.current = setInterval(()=>{
+      const pct = Math.min(99, Math.round(((Date.now()-startedAt)/45000)*100));
+      setAiProgress(pct);
+    }, 300);
+    debugTimer.current = setInterval(()=>{
+      setDebugElapsed(Math.floor((Date.now()-startedAt)/1000));
+    }, 250);
+
+    // 90s frontend watchdog — if the request hasn't resolved by then, abort it
+    // so the button can never be stuck on "Analysing..." forever.
+    const watchdog = setTimeout(()=>{ controller.abort(); }, 90000);
+
+    try{
+      const {regions, total_days} = buildRegionsFromItinerary(days, stateKey);
+      const itinerary = {regions, total_days};
+      const marketData = buildAIMarketSummary();
+      const boardData = buildBoardDataSummary();
+      setDebugStatus('Request sent — waiting for response...');
+      const r = await fetch('/api/predict', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({itinerary, marketData, boardData}),
+        signal: controller.signal,
+      });
+      setDebugHttpStatus(r.status);
+      setDebugStatus('Response received — parsing...');
+      const rawText = await r.clone().text();
+      setDebugRaw(rawText ? rawText : 'Empty response');
+      const data = JSON.parse(rawText || '{}');
+      if (data.error || !data.predictions){ setAiError(true); setDebugStatus('Error: ' + (data.error || 'no predictions returned')); }
+      else {
+        setAiResult(data);
+        setDebugStatus('Done');
+        const toSave = {
+          fingerprint: currentFingerprint,
+          products: allProducts,
+          predictions: data.predictions,
+          summary: data.summary || '',
+          timestamp: new Date().toISOString(),
+        };
+        try{ localStorage.setItem(AI_PREDICTION_STORAGE_KEY, JSON.stringify(toSave)); } catch(e){}
+        setSavedPrediction(toSave);
+      }
+    } catch(e){
+      setDebugRaw(e.message || String(e));
+      if (e.name === 'AbortError'){ setAiErrorMsg('Analysis timed out — please try again.'); setDebugStatus('Error: request timed out / aborted'); }
+      else { setAiError(true); setDebugStatus('Error: ' + (e.message || String(e))); }
+    }
+    clearTimeout(watchdog);
+    if (aiController.current === controller) aiController.current = null;
+    clearInterval(aiProgressTimer.current);
+    clearInterval(debugTimer.current);
+    setDebugElapsed(Math.floor((Date.now()-startedAt)/1000));
+    setAiProgress(100);
+    setAiLoading(false);
+  }
+
+  function clearSavedPrediction(){
+    try{ localStorage.removeItem(AI_PREDICTION_STORAGE_KEY); } catch(e){}
+    setSavedPrediction(null);
+    setAiResult(null);
+    setAiError(false);
+    setAiErrorMsg('');
+  }
+
+  // What to actually render: a fresh result from this session takes priority,
+  // otherwise fall back to whatever was persisted in localStorage.
+  const displayResult = aiResult || (savedPrediction ? {predictions: savedPrediction.predictions, summary: savedPrediction.summary} : null);
 
   // Day counts per state, for the coverage-summary table — the Builder
   // session is single-state, so every day-with-content counts against stateKey.
@@ -1292,22 +1681,133 @@ function ConsumerAnalysisView({days, stateKey}){
   return (
     <div style={{padding:'18px 20px',display:'flex',flexDirection:'column',gap:'20px',maxWidth:'1100px'}}>
 
-      {/* ── Section A: Market fit cards ── */}
+      {/* ── Section 1: AI prediction (moved to top) ── */}
       <div>
-        <div style={cardHd}>Market fit</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
-          {sortedScores.map(s=>(
-            <div key={s.market} style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'14px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'6px'}}>
-                <span style={{fontSize:'16px'}}>{CA_FLAGS[s.market]}</span>
-                <span style={{fontSize:'13px',fontWeight:700,color:'#1c1917'}}>{s.market}</span>
-              </div>
-              <div style={{fontSize:'22px',fontWeight:700,color:s.color,lineHeight:1}}>{s.score}% fit</div>
-              <div style={{margin:'8px 0 6px'}}><Bar pct={s.score} color={s.color}/></div>
-              <div style={{fontSize:'11px',fontWeight:600,color:s.color}}>{s.label}</div>
-              <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'4px'}}>based on {s.n} real {s.market} tour{s.n===1?'':'s'}</div>
+        <div style={cardHd}>AI prediction — who should buy this itinerary?</div>
+        <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'-6px',marginBottom:'2px'}}>Forward-looking · Based on market gaps and tourism trends</div>
+        {detectedStates.length ? (
+          <div style={{fontSize:'10px',color:'#a8a29e',marginBottom:'2px'}}>Scoring across {detectedStates.join(' · ')}</div>
+        ) : null}
+        {isMultiState ? (
+          <div style={{fontSize:'10px',color:'#B45309',marginBottom:'8px'}}>Multi-state itineraries may have lower prediction accuracy. Per-day state selection coming soon.</div>
+        ) : (
+          <div style={{marginBottom:'8px'}}/>
+        )}
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'10px',padding:'14px'}}>
+          {showChangedBanner ? (
+            <div style={{background:'#FEF3E2',border:'0.5px solid #F3D38A',borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',fontSize:'12px',color:'#7A4A00'}}>
+              Your itinerary has changed significantly. Re-analyse for updated predictions.
             </div>
-          ))}
+          ) : null}
+
+          <button
+            onClick={runAiPrediction}
+            disabled={!canAnalyse || aiLoading}
+            title={aiLoading ? undefined : analyseTooltip}
+            style={{...primaryBtn, width:'100%', padding:'10px 14px', fontSize:'13px',
+              opacity:(!canAnalyse || aiLoading)?0.5:1, cursor:(!canAnalyse || aiLoading)?'not-allowed':'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+            {aiLoading ? (<><span className="ca-spinner"/>Analysing... (30-60 seconds)</>) : 'Analyse this itinerary'}
+          </button>
+
+          <div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}>
+            <span onClick={()=>setDebugVisible(v=>!v)} style={{fontSize:'10px',color:'#a8a29e',cursor:'pointer',textDecoration:'underline'}}>{debugVisible?'Hide debug':'Show debug'}</span>
+          </div>
+          {debugVisible ? (
+            <div style={{background:'#FFFBE6',border:'0.5px solid #F0E4A0',borderRadius:'6px',padding:'8px 10px',marginTop:'4px',fontFamily:'Consolas,Menlo,monospace',fontSize:'10px',color:'#57534e',lineHeight:1.6}}>
+              <div><b>Status:</b> {debugStatus}</div>
+              <div><b>Elapsed:</b> {debugElapsed}s</div>
+              <div><b>HTTP status:</b> {debugHttpStatus!==null ? 'HTTP '+debugHttpStatus : '—'}</div>
+              <div style={{marginTop:'4px'}}><b>Raw response:</b></div>
+              <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'4px',padding:'6px',marginTop:'2px',maxHeight:'120px',overflowY:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
+                {debugRaw || 'Empty response'}
+              </div>
+            </div>
+          ) : null}
+
+          <div style={{fontSize:'10px',color:'#a8a29e',textAlign:'center',marginTop:'6px'}}>Powered by AI · Via company proxy</div>
+
+          {aiLoading ? (
+            <div style={{marginTop:'10px',height:'5px',borderRadius:'3px',background:'#f0efed',overflow:'hidden'}}>
+              <div style={{width:aiProgress+'%',height:'100%',background:GREEN,transition:'width .3s linear'}}/>
+            </div>
+          ) : null}
+
+          {aiError ? (
+            <div style={{fontSize:'12px',color:'#a8a29e',marginTop:'12px',textAlign:'center'}}>Ollama is not running. Start Ollama to enable AI predictions.</div>
+          ) : null}
+
+          {aiErrorMsg ? (
+            <div style={{fontSize:'12px',color:'#DC2626',marginTop:'12px',textAlign:'center',fontWeight:600}}>{aiErrorMsg}</div>
+          ) : null}
+
+          {displayResult ? (
+            <div style={{marginTop:'16px'}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
+                {displayResult.predictions.map(p=>{
+                  const color = p.score>=60?'#1D9E75':p.score>=35?'#D97706':'#78716C';
+                  const pillBg = p.score>=60?'#E3F5EC':p.score>=35?'#FCF0DC':'#EEECEA';
+                  return (
+                    <div key={p.market} style={{background:'#fafaf9',border:'0.5px solid #e7e5e4',borderLeft:`4px solid ${color}`,borderRadius:'10px',padding:'20px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'7px',marginBottom:'10px'}}>
+                        <span style={{fontSize:'19px'}}>{CA_FLAGS[p.market]}</span>
+                        <span style={{fontSize:'15px',fontWeight:700,color:'#1c1917'}}>{p.market}</span>
+                      </div>
+                      <div style={{fontSize:'2.1rem',fontWeight:700,color,lineHeight:1}}>{p.score}%</div>
+                      <div style={{marginTop:'10px'}}>
+                        <span style={{display:'inline-block',fontSize:'11px',fontWeight:700,color,background:pillBg,borderRadius:'999px',padding:'3px 10px'}}>{p.label}</span>
+                      </div>
+                      <div style={{fontSize:'0.9rem',lineHeight:1.5,color:'#78716C',marginTop:'10px'}}>{p.reason}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {displayResult.summary ? (
+                <div style={{marginTop:'14px'}}>
+                  <div style={{fontSize:'10px',fontWeight:700,color:'#78716C',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'6px'}}>AI Summary</div>
+                  <div style={{background:'#f5f5f4',borderRadius:'10px',padding:'14px 16px',fontSize:'0.95rem',lineHeight:1.6,color:'#44403c'}}>{displayResult.summary}</div>
+                </div>
+              ) : null}
+              <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'8px'}}>AI prediction based on market data + tourism trends</div>
+
+              {savedPrediction ? (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:'10px',paddingTop:'10px',borderTop:'0.5px solid #f0efed'}}>
+                  <div style={{fontSize:'10px',color:'#a8a29e'}}>
+                    Last analysed: {new Date(savedPrediction.timestamp).toLocaleString()} · {(savedPrediction.fingerprint?savedPrediction.fingerprint.split(',').filter(Boolean).length:0)} products
+                  </div>
+                  <div onClick={clearSavedPrediction} style={{fontSize:'10px',color:'#8C2F1E',cursor:'pointer',fontWeight:600}}>Clear</div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* ── Section 2: Current market coverage (was "Market fit" score cards) ── */}
+      <div>
+        <div style={cardHd}>Current market coverage — who goes here today?</div>
+        <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'-6px',marginBottom:'8px'}}>Based on real competitor data · Historical only</div>
+        <div style={{background:'#fff',border:'0.5px solid #e7e5e4',borderRadius:'8px',overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',padding:'8px 14px',background:'#f5f5f4',fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}}>
+            <div>Market</div><div>Coverage</div>
+          </div>
+          {sortedScores.map(s=>{
+            const pct = s.statePct[stateKey] || 0;
+            const tourCount = Math.round(pct * s.n);
+            const cov = caCoverageLabel(pct);
+            return (
+              <div key={s.market} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',padding:'9px 14px',fontSize:'12px',borderTop:'0.5px solid #f0efed',alignItems:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                  <span style={{fontSize:'14px'}}>{CA_FLAGS[s.market]}</span>
+                  <span style={{fontWeight:600,color:'#1c1917'}}>{s.market}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                  <span style={{color:'#57534e'}}>{tourCount} of {s.n} {s.market} tour{s.n===1?'':'s'} visit {stateKey}</span>
+                  <span style={{fontSize:'10px',fontWeight:700,color:cov.color}}>{cov.label}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1404,6 +1904,7 @@ function App(){
   const [suggestSearch, setSuggestSearch] = useState('');
   const [sourcePopup, setSourcePopup] = useState(null); // product name currently showing its source popup, or null
   const [themeInputs, setThemeInputs] = useState({});
+  const [draftBanner, setDraftBanner] = useState(null); // {market,state,days} while a generated draft is loaded, or null
 
   // ---- templates tab filters (operate on the global cross-state template list) ----
   const [tplSourceFilter, setTplSourceFilter] = useState('all');      // all | Competitor | Board
@@ -1557,6 +2058,7 @@ function App(){
   const clearAll = ()=>{
     if(!window.confirm('Are you sure? This will remove all days and products.')) return;
     setTourName(''); setTourUrl(''); setTourSource(''); setDuration(1); setDays([blankDay()]); setActiveDay(0);
+    setDraftBanner(null);
   };
   const removeDay = (i)=>{
     setDays(prev=>{
@@ -1609,8 +2111,45 @@ function App(){
     // (triggered by setStateKey or initial mount) never wins over our data.
     setView('builder');
     setStateKey(targetState);
-    setTimeout(()=>{ setTourName(''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); }, 0);
+    setTimeout(()=>{ setTourName(''); setTourUrl(t.url||''); setTourSource(t.source||''); setDuration(d.length); setDays(d); setActiveDay(0); setDraftBanner(null); }, 0);
     showToast('Loaded template · '+(t.name||''));
+  }
+
+  // ---- 3b: rule-based draft generator (client-side only, no API calls) ----
+  // Builds a day-by-day skeleton from board data for a given market+state insight card:
+  // Day 1 / last day = the state's most common board arrival city (no products — PM fills these in);
+  // middle days = the missing-products list (board-promoted, not sold by this market's competitors)
+  // spread 1-2 per day, in board-frequency order, over whatever days are left.
+  function generateDraftFromInsight(market, state, enr){
+    const duration = Math.max(2, Math.round(enr.avgDur||3));
+    const arrivalCity = enr.arrivalCity || state;
+    const missing = enr.missingProductsAll && enr.missingProductsAll.length ? enr.missingProductsAll : enr.missingProducts;
+
+    const d = [];
+    d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+    const middleCount = Math.max(0, duration-2);
+    if (middleCount > 0){
+      // one or two of the highest board-frequency missing products per day — not the whole tail
+      const perDay = Math.min(2, Math.max(1, Math.ceil(Math.min(missing.length, middleCount*2) / middleCount)));
+      let idx = 0;
+      for (let i=0;i<middleCount;i++){
+        const slice = missing.slice(idx, idx+perDay);
+        idx += perDay;
+        d.push({location:'', city:arrivalCity, desc:'', title:'', products:slice, customThemes:[], removedThemes:[]});
+      }
+    }
+    if (duration > 1) d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+    while (d.length < duration) d.push({location:'', city:arrivalCity, desc:'', title:'', products:[], customThemes:[], removedThemes:[]});
+
+    setView('builder');
+    setStateKey(state);
+    setTimeout(()=>{
+      setTourName(''); setTourUrl(''); setTourSource('');
+      setDuration(d.length); setDays(d); setActiveDay(0);
+      setBuilderSubTab('consumer');
+      setDraftBanner({market, state, days:d.length});
+    }, 0);
+    showToast('Draft generated from Opportunities · '+market+' · '+state);
   }
 
   // ---- saved itineraries (server API) ----
@@ -1696,7 +2235,7 @@ function App(){
   const NAV_ALL = [
     ['builder','Itinerary builder'],['templates','Itinerary templates'],['insights','Product insights'],
     ['gap','Board vs operators'],['data','Tagged data'],['saved','Saved itineraries'],['analytics','Analytics'],
-    ['market','Market Intelligence']
+    ['market','Opportunities']
   ];
   const NAV = NAV_ALL.filter(([k])=>!HIDDEN_TABS.includes(k));
   const navStyle = (k)=> Object.assign(
@@ -2498,13 +3037,15 @@ function App(){
   }
 
   const viewBody = {builder:renderBuilder, templates:renderTemplates, insights:renderInsights, gap:renderGap, data:renderData, saved:renderSaved, analytics:()=><AnalyticsView catalog={catalog} THEMES={THEMES}/>, market:()=><MarketIntelligenceView
+        catalog={catalog} allTemplatesGlobal={allTemplatesGlobal}
         onGoToTemplate={(name,source)=>{ setTplExactMatch({name, source}); setTplSearch(''); setView('templates'); }}
         onGoToTemplateFiltered={({state, sourceType})=>{
           setTplExactMatch(null); setTplSearch('');
           setTplStateFilter(state? [state] : []);
           setTplSourceFilter(sourceType || 'all');
           setView('templates');
-        }}/>}[view];
+        }}
+        onGenerateDraft={generateDraftFromInsight}/>}[view];
 
   return (
   <div style={{display:'flex',width:'100%',height:'100vh',border:'0.5px solid #e7e5e4',overflow:'hidden',background:'#fafaf9'}}>
@@ -2529,6 +3070,7 @@ function App(){
         <div>
           <div style={{fontSize:'16px',fontWeight:600}}>{topTitle}</div>
           <div style={{fontSize:'11px',color:'#57534e',marginTop:'1px'}}>{topSub}</div>
+          {view==='builder'? <div style={{fontSize:'10px',color:'#a8a29e',marginTop:'2px'}}>Start from Opportunities for AI-assisted drafts</div>:null}
         </div>
         <div style={{display:'flex',gap:'8px'}}>
           {view==='builder'? <button onClick={clearAll} style={{padding:'6px 12px',borderRadius:'6px',fontSize:'12px',fontWeight:600,background:'transparent',color:'#78716c',border:'0.5px solid #d6d3d1',cursor:'pointer'}}>Clear all</button>:null}
@@ -2536,6 +3078,14 @@ function App(){
           <button onClick={exportWord} style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 11px',borderRadius:'6px',fontSize:'12px',background:TINT,color:'#27500A',border:'0.5px solid #C0DD97',cursor:'pointer'}}>↓ Export</button>
         </div>
       </div>
+      {view==='builder' && draftBanner && (
+        <div style={{background:TINT,borderBottom:'0.5px solid #C0DD97',padding:'8px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+          <div style={{fontSize:'12px',color:'#27500A'}}>
+            Draft generated for {draftBanner.market} market · {draftBanner.state} · {draftBanner.days} days · Based on board data
+          </div>
+          <div onClick={()=>setDraftBanner(null)} title="Dismiss" style={{cursor:'pointer',color:'#27500A',fontSize:'14px',lineHeight:1,padding:'0 2px'}}>×</div>
+        </div>
+      )}
       {view==='builder' && (
         <div style={{background:'#fff',borderBottom:'0.5px solid #e7e5e4',padding:'10px 16px',display:'flex',flexDirection:'column',gap:'8px'}}>
           {/* controls row */}
@@ -2569,6 +3119,9 @@ function App(){
             </div>
           ))}
         </div>
+      )}
+      {view==='builder' && draftBanner && (
+        <div style={{padding:'6px 16px',fontSize:'10px',color:'#a8a29e'}}>Opportunities → Builder</div>
       )}
       {view==='builder'
         ? (builderSubTab==='consumer'

@@ -252,3 +252,4 @@ locally in `app/frontend/` so the tool works without an internet connection.
 - **Operator / Competitor** — companies selling tours (`source_type == Competitor`), commercial "what's sold".
 - **Gap** — products the board features that operators don't (or vice versa).
 - **Board alignment** — share of an itinerary's products that the board also features.
+
