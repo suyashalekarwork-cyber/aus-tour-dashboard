@@ -54,8 +54,10 @@ Edit `php_deploy/config.php`:
 The package is ~30 MB (mostly the data files in `imports/`), so zip first:
 
 1. Zip the **contents** of `php_deploy/` (not the folder itself).
-2. cPanel → **File Manager** → go to `public_html/` (or a subfolder like
-   `public_html/itinerary/` — both work, the app uses relative URLs).
+2. cPanel → **File Manager** → go to a subfolder of the main dashboard,
+   next to `product-management/` (e.g. `itinerary_builder/`) — the 2FA
+   guard needs the dashboard's `2fa/`, `dbconn.php` and `login.php` one
+   level up (see Step 7).
 3. Upload the zip → right-click → **Extract** → delete the zip.
 4. Make sure the `.htaccess` files were extracted (File Manager → Settings →
    **Show Hidden Files**) — there are four: one in the root and one each in
@@ -93,11 +95,23 @@ Open `https://yourdomain.com.au/`. Checklist:
 - [ ] Templates and Market Intelligence views show data.
 - [ ] AI prediction works (server-side call to the n8n proxy).
 
-## Step 7 — Protect it with a login (recommended)
+## Step 7 — Access control (built in)
 
-cPanel → **Directory Privacy** → select the folder you uploaded to → tick
-*Password protect this directory* → create a user (e.g. `neha`) and password.
-This protects everything: page, data, and API.
+The app is gated the same way as `product-management/`: `auth_guard.php`
+requires a main-dashboard login (`$_SESSION['user_name']`) **plus** a TOTP
+2FA code once per session (shared flag `analytics_2fa_ok`, so verifying in
+either tool unlocks both). The page (`index.php`), `api.php` and
+`dataset.php` are all behind the guard; direct access to `builder.html` is
+blocked in `.htaccess`.
+
+Because of this, the folder **must be uploaded as a subfolder of the main
+dashboard** (next to `product-management/`) — the guard uses
+`../2fa/totp_lib.php`, `../dbconn.php`, `../login.php` and
+`../product-management/activity_log.php`.
+
+`import.php` and `upload.php` keep their own protection (the `import_key`
+from `config.php`) so the data team's workflow — including running
+`import.php` from SSH — is unchanged.
 
 ---
 
@@ -168,7 +182,9 @@ phpMyAdmin → Export, or include the database in your cPanel backup schedule.
 
 | File | Role |
 |---|---|
-| `builder.html` + `support.js` + react/babel libs | the app (frontend) |
+| `index.php` | gated entry point: runs the 2FA guard, then serves `builder.html` |
+| `auth_guard.php` | dashboard login + TOTP 2FA gate (same as `product-management/`) |
+| `builder.html` + `support.js` + react/babel libs | the app (frontend; `builder.html` not directly web-accessible) |
 | `data_module.js` | corrections logic (app code, owned by the web team — imports never touch it) |
 | `api.php` | itineraries CRUD (MySQL) + AI prediction proxy |
 | `dataset.php` | serves data/market/tokens datasets from MySQL (ETag + cache) |
@@ -188,7 +204,7 @@ phpMyAdmin → Export, or include the database in your cPanel backup schedule.
 | App data | 26 MB+ static JS files, re-downloaded every load | MySQL tables, served with ETag/304 caching + gzip |
 | Data updates | replace files, restart server | upload to `imports/`, run `import.php` |
 | Corrections editor (`/sync`, `/restore`) | needed `app/pipeline/` (not in this package) | not deployed — the builder UI never calls them |
-| Login | disabled | cPanel Directory Privacy |
+| Login | disabled | dashboard login + TOTP 2FA (`auth_guard.php`, same as product-management) |
 
 Frontend changes: four `fetch()` URLs made relative, three `<script>` tags now
 point at `dataset.php`, ids of saved itineraries get a random suffix. Nothing

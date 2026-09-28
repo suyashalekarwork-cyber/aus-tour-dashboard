@@ -16,6 +16,13 @@
  *     team's next import bumps the version.
  */
 
+define('GUARD_API', true);
+// The guard starts the session; by default that emits "Cache-Control: no-store"
+// which would make browsers drop the cached dataset on every 304 revalidate.
+// This file sets its own ETag/Cache-Control headers below, so send none here.
+session_cache_limiter('');
+require_once __DIR__ . '/auth_guard.php'; // main-dashboard login + TOTP 2FA; JSON 401/403 on failure
+
 $config = require __DIR__ . '/config.php';
 
 $f = $_GET['f'] ?? '';

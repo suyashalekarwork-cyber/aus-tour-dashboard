@@ -1,7 +1,8 @@
 # TDU Itinerary Builder — Apache config for cPanel
 
-# Opening the folder goes straight to the app
-DirectoryIndex builder.html
+# Opening the folder goes through the login + TOTP 2FA gate, which then
+# serves builder.html (see index.php / auth_guard.php)
+DirectoryIndex index.php
 
 # Route API calls to api.php (paths are relative, so this works in a subfolder)
 RewriteEngine On
@@ -10,7 +11,8 @@ RewriteRule ^api/predict$ api.php [QSA,L]
 
 # Block direct download of server-side files
 # (imports/, cache/ and setup/ each carry their own .htaccess rules)
-<FilesMatch "^(config\.php|schema\.sql|saved_itineraries\.json)$">
+# builder.html is blocked so the app is only reachable via the 2FA-gated index.php
+<FilesMatch "^(config\.php|schema\.sql|saved_itineraries\.json|builder\.html)$">
     Require all denied
 </FilesMatch>
 

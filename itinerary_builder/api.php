@@ -15,6 +15,9 @@
  * (phase 1); moving them into MySQL is a later phase.
  */
 
+define('GUARD_API', true);
+require_once __DIR__ . '/auth_guard.php'; // main-dashboard login + TOTP 2FA; JSON 401/403 on failure
+
 $config = require __DIR__ . '/config.php';
 
 header('Content-Type: application/json; charset=utf-8');

@@ -17,9 +17,9 @@ return [
     // ── Data imports ──────────────────────────────────────────────────
     // Required as ?key=... when running import.php (so only your team can
     // trigger a data reload). Change it to any random string.
-    'import_key' => 'testkey123',
+    'import_key' => 'CHANGE_ME',
 
     // ── AI prediction proxy (same values as the old server.py) ───────
-    'proxy_url' => 'https://gtxn8n.yourbestwayhome.com.au/webhook/openai-response-proxy',
-    'proxy_key' => 'Gtx1234*',
+    'proxy_url' => 'CHANGE_ME',
+    'proxy_key' => 'CHANGE_ME',
 ];
