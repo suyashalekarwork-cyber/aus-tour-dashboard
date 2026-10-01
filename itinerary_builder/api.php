@@ -85,7 +85,7 @@ try {
     } elseif ($path === '/quotes/templates' && $method === 'GET') {
         quotes_templates($config);
     } elseif ($path === '/quotes/itinerary-patterns' && $method === 'GET') {
-        quotes_itinerary_patterns();
+        quotes_itinerary_patterns($config);
     } elseif ($path === '/quotes/routes' && $method === 'GET') {
         quotes_routes();
     } elseif ($path === '/quotes/route-summary' && $method === 'GET') {
@@ -109,29 +109,29 @@ try {
     } elseif ($path === '/quotes/export-enriched' && $method === 'GET') {
         quotes_export_enriched($config);
     } elseif ($path === '/quotes/export-clean' && $method === 'GET') {
-        quotes_export_clean();
+        quotes_export_clean($config);
     } elseif ($path === '/quotes/clean-analytics' && $method === 'GET') {
-        quotes_clean_analytics();
+        quotes_clean_analytics($config);
     } elseif ($path === '/quotes/clean-overview' && $method === 'GET') {
         quotes_clean_overview();
     } elseif ($path === '/quotes/clean-products' && $method === 'GET') {
-        quotes_clean_products();
+        quotes_clean_products($config);
     } elseif ($path === '/quotes/clean-spread' && $method === 'GET') {
         quotes_clean_spread();
     } elseif ($path === '/quotes/clean-seasonality' && $method === 'GET') {
-        quotes_clean_seasonality();
+        quotes_clean_seasonality($config);
     } elseif ($path === '/quotes/clean-hotels' && $method === 'GET') {
-        quotes_clean_hotels();
+        quotes_clean_hotels($config);
     } elseif ($path === '/quotes/clean-extra' && $method === 'GET') {
         quotes_clean_extra();
     } elseif ($path === '/quotes/clean-cooccurrence' && $method === 'GET') {
-        quotes_clean_cooccurrence();
+        quotes_clean_cooccurrence($config);
     } elseif ($path === '/quotes/clean-city-cooccurrence' && $method === 'GET') {
-        quotes_clean_city_cooccurrence();
+        quotes_clean_city_cooccurrence($config);
     } elseif (preg_match('#^/quotes/metadata/(.+)$#', $path, $m) && $method === 'GET') {
         get_quote_metadata(urldecode($m[1]));
     } elseif (preg_match('#^/quotes/clean/(.+)$#', $path, $m) && $method === 'GET') {
-        get_quote_clean(urldecode($m[1]));
+        get_quote_clean($config, urldecode($m[1]));
     } elseif (preg_match('#^/quotes/(.+)$#', $path, $m) && $method === 'GET') {
         get_quote($config, urldecode($m[1]));
     } else {
@@ -282,33 +282,37 @@ function get_quote_metadata(string $quoteNo): void
 }
 
 /**
- * Serves one quote's full products/hotels from quotes_clean/{quote_no}.json
- * â€” the CLEANED copy, with city casing already normalized by
+ * Serves one quote's full products/hotels from the quotes MySQL table â€”
+ * the CLEANED copy, with city casing already normalized by
  * clean_quotes.php â€” rather than get_quote()'s live-table row, which is the
  * original raw source data (same product/hotel content, but city casing
  * exactly as it was typed, e.g. "Carins" instead of "Cairns"). Used by the
  * standalone quotes_itinerary_mock.html's quote-detail modal so a lazily-
  * fetched full quote is consistent with the rest of the mock, which reads
- * quotes_clean/ everywhere else. Only quotes that passed cleaning have a
- * file here; anything else 404s, same convention as get_quote_metadata().
+ * the quotes table everywhere else. Only quotes that passed cleaning have a
+ * row here; anything else 404s, same convention as get_quote_metadata().
+ *
+ * Migrated from quotes_clean/{quote_no}.json file reads to the quotes
+ * table (populated by import.php's import_quotes()) â€” see api.php's
+ * header comment, "moving them into MySQL is a later phase."
  *
  * $quoteNo is validated against a strict allowlist pattern before ever
- * touching the filesystem, same as get_quote_metadata() above.
+ * touching the database, same as get_quote_metadata() above.
  */
-function get_quote_clean(string $quoteNo): void
+function get_quote_clean(array $config, string $quoteNo): void
 {
     if (!preg_match('/^[A-Za-z0-9_-]+$/', $quoteNo)) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid quote number format.']);
         return;
     }
-    $path = __DIR__ . '/quotes_clean/' . $quoteNo . '.json';
-    if (!is_file($path)) {
+    $data = quotes_get_clean_json($config, $quoteNo);
+    if ($data === null) {
         http_response_code(404);
         echo json_encode(['error' => 'Quote not found in the cleaned dataset (it may not have passed data cleaning): ' . $quoteNo]);
         return;
     }
-    echo file_get_contents($path); // already valid JSON, stored verbatim
+    echo $data; // already valid JSON, stored verbatim
 }
 
 /**
@@ -1631,29 +1635,17 @@ function quotes_templates(array $config): void
     $CORE_SUPPORT = 0.40;
     $ADDON_SUPPORT = 0.15;
 
-    // source=clean: read from quotes_clean/ (the day-numbering/route-cleaned
-    // 3,847-quote set) instead of the live, uncleaned quotes table. Used
-    // ONLY by the standalone quotes_itinerary_mock.html Patterns tab â€” the
-    // LIVE dashboard's existing Templates tab calls this with no params and
-    // is deliberately left completely unaffected (same query, same table,
-    // same behavior as before this flag existed).
-    $useCleanSource = ($_GET['source'] ?? '') === 'clean';
-
+    // source=clean used to switch between glob()-ing quotes_clean/ files and
+    // querying the quotes table, back when the table was empty and only the
+    // files had the cleaned dataset. Now that import.php's import_quotes()
+    // loads quotes_clean/ into the SAME quotes table, both paths return
+    // identical data (verified byte-for-byte against the live dataset) â€”
+    // the flag is accepted for backward compatibility (old callers/bookmarked
+    // URLs with ?source=clean keep working) but no longer changes behavior.
     $rows = []; // normalized to [['quote_no'=>.., 'quotestage'=>.., 'data'=>json-string], ...]
-    if ($useCleanSource) {
-        foreach (glob(__DIR__ . '/quotes_clean/*.json') ?: [] as $file) {
-            $raw = file_get_contents($file);
-            $obj = json_decode($raw);
-            if (!is_object($obj) || empty($obj->quote_no)) {
-                continue;
-            }
-            $rows[] = ['quote_no' => $obj->quote_no, 'quotestage' => $obj->quotestage ?? '', 'data' => $raw];
-        }
-    } else {
-        $stmt = db($config)->query('SELECT quote_no, quotestage, data FROM quotes');
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $rows[] = $row;
-        }
+    $stmt = db($config)->query('SELECT quote_no, quotestage, data FROM quotes');
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $rows[] = $row;
     }
 
     $groups = []; // "route|band" => [quote_no, ...]
@@ -1864,7 +1856,7 @@ function quotes_templates(array $config): void
  * that logic is already correct, just applies a metadata-only pre-filter
  * (same fields/pattern as quotes_export_clean()'s pass 1) before grouping.
  */
-function quotes_itinerary_patterns(): void
+function quotes_itinerary_patterns(array $config): void
 {
     $MIN_QUOTES_PER_TEMPLATE = max(1, (int) ($_GET['minQuotes'] ?? 1));
     $CORE_SUPPORT = 0.40;
@@ -1877,12 +1869,11 @@ function quotes_itinerary_patterns(): void
     $minDaysFilter = isset($_GET['minDays']) && $_GET['minDays'] !== '' ? (int) $_GET['minDays'] : null;
     $maxDaysFilter = isset($_GET['maxDays']) && $_GET['maxDays'] !== '' ? (int) $_GET['maxDays'] : null;
 
-    $cleanDir = __DIR__ . '/quotes_clean';
     $metaDir = __DIR__ . '/quotes_metadata';
 
-    // Pass 1: metadata-only filter â€” never opens quotes_clean/ here, same
-    // reasoning as quotes_export_clean()'s pass 1 (metadata files are a
-    // fraction of the size of the full quote files).
+    // Pass 1: metadata-only filter â€” never touches the full quote data here,
+    // same reasoning as quotes_export_clean()'s pass 1 (metadata files are a
+    // fraction of the size of the full quote rows).
     $allowedQuoteNos = [];
     foreach (glob($metaDir . '/*.json') ?: [] as $file) {
         $meta = json_decode(file_get_contents($file));
@@ -1924,12 +1915,22 @@ function quotes_itinerary_patterns(): void
     $quoteData = [];
     $totalQuotes = 0;
 
-    foreach (array_keys($allowedQuoteNos) as $quoteNo) {
-        $file = $cleanDir . '/' . $quoteNo . '.json';
-        if (!is_file($file)) {
+    $quoteNoList = array_keys($allowedQuoteNos);
+    $rowsByQuoteNo = [];
+    if ($quoteNoList) {
+        $placeholders = implode(',', array_fill(0, count($quoteNoList), '?'));
+        $stmt = db($config)->prepare("SELECT quote_no, data FROM quotes WHERE quote_no IN ($placeholders)");
+        $stmt->execute($quoteNoList);
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $rowsByQuoteNo[$row['quote_no']] = $row['data'];
+        }
+    }
+
+    foreach ($quoteNoList as $quoteNo) {
+        if (!isset($rowsByQuoteNo[$quoteNo])) {
             continue;
         }
-        $obj = json_decode(file_get_contents($file));
+        $obj = json_decode($rowsByQuoteNo[$quoteNo]);
         if (!is_object($obj)) {
             continue;
         }
@@ -2394,7 +2395,7 @@ function quotes_city_cooccurrence(array $config): void
  * pure product-presence association-rule mining, nothing here needed
  * reframing. Used by the standalone quotes_itinerary_mock.html Analytics tab.
  */
-function quotes_clean_cooccurrence(): void
+function quotes_clean_cooccurrence(array $config): void
 {
     $MIN_PAIR_SUPPORT = 25;
     $MIN_LIFT = 3.0;
@@ -2404,7 +2405,7 @@ function quotes_clean_cooccurrence(): void
     $totalQuotes = 0;
     $nameDisplay = []; // nameKey => [rawName => count]
 
-    foreach (quotes_iter_clean_rows() as $row) {
+    foreach (quotes_iter_clean_rows($config) as $row) {
         $totalQuotes++;
         $obj = json_decode($row['data']);
         $names = [];
@@ -2488,7 +2489,7 @@ function quotes_clean_cooccurrence(): void
  * quotes_clean_city_cooccurrence() â€” same as quotes_city_cooccurrence()
  * above, but reads ONLY quotes_clean/ instead of the live table.
  */
-function quotes_clean_city_cooccurrence(): void
+function quotes_clean_city_cooccurrence(array $config): void
 {
     $MIN_PAIR_SUPPORT = 15;
     $MIN_LIFT = 1.3;
@@ -2497,7 +2498,7 @@ function quotes_clean_city_cooccurrence(): void
     $pairs = [];   // "a\x1Fb" (a < b) => n quotes containing both
     $totalQuotes = 0;
 
-    foreach (quotes_iter_clean_rows() as $row) {
+    foreach (quotes_iter_clean_rows($config) as $row) {
         $totalQuotes++;
         $obj = json_decode($row['data']);
         $cities = [];
@@ -2716,7 +2717,7 @@ function quotes_export_enriched(array $config): void
  * (3,847) as a bare array, matching that endpoint's "no params = full
  * dump" convention.
  */
-function quotes_export_clean(): void
+function quotes_export_clean(array $config): void
 {
     $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : null;
     $pageSize = max(1, (int) ($_GET['pageSize'] ?? 25));
@@ -2776,7 +2777,6 @@ function quotes_export_clean(): void
     // need full products/hotels and want the fastest possible response.
     $light = isset($_GET['light']) && $_GET['light'] !== '' && $_GET['light'] !== '0';
 
-    $cleanDir = __DIR__ . '/quotes_clean';
     $metaDir  = __DIR__ . '/quotes_metadata';
     $files = glob($metaDir . '/*.json') ?: [];
     sort($files);
@@ -2878,7 +2878,8 @@ function quotes_export_clean(): void
             // parsing hotel check-in dates), so this is the one filter here
             // that has to open the full quote â€” only paid for quotes that
             // already survived every other, cheaper check above.
-            $fullQuote = json_decode(file_get_contents($cleanDir . '/' . $quoteNo . '.json'));
+            $fullQuoteJson = quotes_get_clean_json($config, $quoteNo);
+            $fullQuote = $fullQuoteJson !== null ? json_decode($fullQuoteJson) : null;
             if (!is_object($fullQuote) || quotes_travel_month($fullQuote) !== $monthFilter) {
                 continue;
             }
@@ -2960,7 +2961,8 @@ function quotes_export_clean(): void
             ];
             continue;
         }
-        $obj = json_decode(file_get_contents($cleanDir . '/' . $quoteNo . '.json'));
+        $quoteJson = quotes_get_clean_json($config, $quoteNo);
+        $obj = $quoteJson !== null ? json_decode($quoteJson) : null;
         if (!is_object($obj)) {
             continue;
         }
@@ -4156,10 +4158,9 @@ function quotes_search_locations(): void
  *   dayCoverage           â€” [{day, quotes}] "quotes running >= day N", for
  *                            a day-slider UI
  */
-function quotes_clean_analytics(): void
+function quotes_clean_analytics(array $config): void
 {
     $metaDir = __DIR__ . '/quotes_metadata';
-    $cleanDir = __DIR__ . '/quotes_clean';
     $files = glob($metaDir . '/*.json') ?: [];
 
     $daysFilter = isset($_GET['days']) && $_GET['days'] !== '' ? (int) $_GET['days'] : null;
@@ -4271,7 +4272,8 @@ function quotes_clean_analytics(): void
             // Travel month isn't in metadata â€” only opens the full quote
             // file for quotes that already survived every cheaper check
             // above, same tradeoff as the product/hotel-name filters.
-            $fullQuote = json_decode(file_get_contents($cleanDir . '/' . basename($file, '.json') . '.json'));
+            $monthData = quotes_get_clean_json($config, basename($file, '.json'));
+            $fullQuote = $monthData !== null ? json_decode($monthData) : null;
             if (!is_object($fullQuote) || quotes_travel_month($fullQuote) !== $monthFilter) {
                 $passesNonDayFilters = false;
             }
@@ -4709,10 +4711,10 @@ function quotes_products(array $config): void
  * isn't a meaningful signal (these quotes were built manually via
  * questionnaires, not real customer decisions).
  */
-function quotes_clean_products(): void
+function quotes_clean_products(array $config): void
 {
     $f = quotes_read_filters();
-    quotes_products_impl($f, quotes_iter_clean_rows());
+    quotes_products_impl($f, quotes_iter_clean_rows($config));
 }
 
 /**
@@ -4729,11 +4731,25 @@ function quotes_iter_live_rows(array $config)
         yield $row;
     }
 }
-function quotes_iter_clean_rows()
+function quotes_iter_clean_rows(array $config)
 {
-    foreach (glob(__DIR__ . '/quotes_clean/*.json') ?: [] as $file) {
-        yield ['data' => file_get_contents($file)];
+    $stmt = db($config)->query('SELECT data FROM quotes');
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        yield $row;
     }
+}
+
+/**
+ * Fetches one quote's raw JSON string by quote_no, or null if not found.
+ * Shared by every single-quote lookup that used to be
+ * file_get_contents(quotes_clean/{quote_no}.json).
+ */
+function quotes_get_clean_json(array $config, string $quoteNo): ?string
+{
+    $stmt = db($config)->prepare('SELECT data FROM quotes WHERE quote_no = ?');
+    $stmt->execute([$quoteNo]);
+    $data = $stmt->fetchColumn();
+    return $data === false ? null : $data;
 }
 
 /**
@@ -4842,7 +4858,7 @@ function quotes_clean_spread(): void
  * from every cut below. Real gap, not a bug, carried through in the
  * response so the frontend states it rather than hiding it.
  */
-function quotes_clean_seasonality(): void
+function quotes_clean_seasonality(array $config): void
 {
     $months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     $seasonOf = [12 => 'Summer', 1 => 'Summer', 2 => 'Summer', 3 => 'Autumn', 4 => 'Autumn', 5 => 'Autumn',
@@ -4862,8 +4878,8 @@ function quotes_clean_seasonality(): void
     $cityTotals = []; // cityLower => count of dated quotes touching it
     $cityDisplayVotes = []; // cityLower => [displayVariant => count]
 
-    foreach (glob(__DIR__ . '/quotes_clean/*.json') ?: [] as $file) {
-        $obj = json_decode(file_get_contents($file));
+    foreach (quotes_iter_clean_rows($config) as $row) {
+        $obj = json_decode($row['data']);
         if (!is_object($obj)) {
             continue;
         }
@@ -4985,7 +5001,7 @@ function quotes_clean_seasonality(): void
  * quotes_products_impl()'s product concentration, applied to hotels
  * instead). Reads quotes_clean/ only. Quotestage-free.
  */
-function quotes_clean_hotels(): void
+function quotes_clean_hotels(array $config): void
 {
     // ?category=/?product=/?state= still mean "quote has >=1 PRODUCT line
     // matching" (quotes_matches_filters()'s usual semantics) — but ?city=
@@ -5017,7 +5033,7 @@ function quotes_clean_hotels(): void
     $distinctHotelsPerQuote = [];
     $totalQuotes = 0;
 
-    foreach (quotes_iter_clean_rows() as $row) {
+    foreach (quotes_iter_clean_rows($config) as $row) {
         $obj = json_decode($row['data']);
         $products = $obj->products ?? [];
         if (!quotes_matches_filters($products, $fNoCity)) {

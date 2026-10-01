@@ -119,6 +119,22 @@ if (is_readable("$importsDir/tokens.json")) {
     echo "[skip] no imports/tokens.json found\n";
 }
 
+// ── quotes_clean/*.json → quotes ─────────────────────────────────────────────
+// One file per quote (quote_no.json), not a single big array like the
+// datasets above — loops the directory directly rather than using
+// import_array(). Fully replaces the table each run, same as every other
+// dataset here, so re-running after a quotes_clean/ update is always safe.
+
+$quotesCleanDir = __DIR__ . '/quotes_clean';
+if (is_dir($quotesCleanDir)) {
+    echo "Importing quotes_clean/ ...\n";
+    $n = import_quotes($pdo, $quotesCleanDir);
+    echo "[ok] quotes: $n rows\n";
+    $didAnything = true;
+} else {
+    echo "[skip] no quotes_clean/ directory found\n";
+}
+
 // ── finish: invalidate the serving cache ──────────────────────────────────────
 
 if ($didAnything) {
@@ -268,6 +284,39 @@ function import_data(PDO $pdo, string $dir): void
 
     $pdo->commit();
     echo "[ok] states: $stateSeq · tour_rows: $rowCount · templates: $tplSeq\n";
+}
+
+/**
+ * Replaces the quotes table with every quotes_clean/*.json file. Each file is
+ * one full quote object ({quote_no, quotestage, products, hotels}); unlike
+ * import_array() above there's no single array to loop — one file = one row.
+ */
+function import_quotes(PDO $pdo, string $dir): int
+{
+    $files = glob("$dir/*.json") ?: [];
+    $pdo->beginTransaction();
+    $pdo->exec('DELETE FROM quotes');
+    $stmt = $pdo->prepare(
+        'INSERT INTO quotes (quote_no, quotestage, product_count, hotel_count, data)
+         VALUES (?, ?, ?, ?, ?)'
+    );
+    $n = 0;
+    foreach ($files as $file) {
+        $q = json_decode(file_get_contents($file));
+        if (!is_object($q) || empty($q->quote_no)) {
+            fail(basename($file) . ': not a valid quote object (missing quote_no)');
+        }
+        $stmt->execute([
+            trunc($q->quote_no, 32),
+            trunc($q->quotestage ?? '', 64),
+            count($q->products ?? []),
+            count($q->hotels ?? []),
+            json_encode($q, JSON_FLAGS),
+        ]);
+        $n++;
+    }
+    $pdo->commit();
+    return $n;
 }
 
 /**
